@@ -17,7 +17,7 @@ public class GSCommandArgumentOptions
 
     public static bool VerifyArgumentFromOptions(GSCommand cmd, GSCommandArgumentOptions options)
     {
-        if(options.VaildArgumentCount && !VerifyArgumentRange(cmd.Args,options.CountRange))
+        if (options.VaildArgumentCount && !VerifyArgumentRange(cmd.Args, options.CountRange))
         {
             GSPublic.SetLastError(GSPublic.GSErrorCode.GSE_ARGUMENTOUTOFRANGE);
             GSPublic.SetException(
@@ -30,14 +30,14 @@ public class GSCommandArgumentOptions
             return false;
         }
 
-        if(options.VaildArgumentType && !VerifyArgumentType(cmd.Args, options.ArgumentTypePairs))
+        if (options.VaildArgumentType && !VerifyArgumentType(cmd.Args, options.ArgumentTypePairs))
         {
             GSPublic.SetLastError(GSPublic.GSErrorCode.GSE_WRONGARG);
             GSPublic.SetException(new ArgumentException("Argument type is wrong."));
             return false;
         }
 
-        if(options.VaildArgumentParenthesis && !VerifyArgumentParenthesis(cmd, options))
+        if (options.VaildArgumentParenthesis && !VerifyArgumentParenthesis(cmd, options))
         {
             GSPublic.SetLastError(GSPublic.GSErrorCode.GSE_WRONGARG);
             GSPublic.SetException(new ArgFormatException("Argument parenthesis is wrong."));
@@ -69,7 +69,6 @@ public class GSCommandArgumentOptions
             if (options.ArgumentParenthesisTypePairs[i] != command.TypeArgPairs[command.Args[i]])
                 return false;
         }
-
         return true;
     }
 

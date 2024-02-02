@@ -6,6 +6,7 @@ internal partial class Program
 {
     static int Main(string[] args)
     {
+        //GSFunction.Test();
         GSScript gss = new GSScript();
         gss.Open("test.gs");
         LoadProc(in gss);

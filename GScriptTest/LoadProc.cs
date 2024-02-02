@@ -1,11 +1,5 @@
 ﻿using GScriptAnalyzer;
 using GScriptAnalyzer.Exception;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace GScriptTest;
 
 internal partial class Program
@@ -78,6 +72,8 @@ internal partial class Program
             }
         ));
 
+        // goto command
+
         static bool Compare(GSObject a, GSObject b, string compflag)
         {
             switch(compflag)
@@ -128,14 +124,15 @@ internal partial class Program
                 GSPublic.SetLastError(GSPublic.GSErrorCode.GSE_ILLEGALCOMMAND);
                 return false;
             }
-            line = whilestack.Pop() + 1;
+            line = whilestack.Pop();
             return true;
         }
 
         static bool WhileFunction(GSCommand cmd, ref int line)
         {
             var arg = cmd.Args;
-            whilestack.Push(line);
+            if(!whilestack.Contains(line))
+                whilestack.Push(line);
             line = arg[0].As<int>();
             return true;
         }
