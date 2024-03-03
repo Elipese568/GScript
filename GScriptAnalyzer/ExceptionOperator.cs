@@ -5,16 +5,17 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GScriptAnalyzer
+namespace GScript.Analyzer
 {
-    public class GSPublic
+    public class ExceptionOperator
     {
-        public static class GSErrorCode
+        public static class GErrorCode
         {
             public static readonly int GSE_ILLEGALCOMMAND = 1000;
             public static readonly int GSE_OUTOFLINERANGE = 1001;
             public static readonly int GSE_ARGUMENTOUTOFRANGE = 2001;
             public static readonly int GSE_WRONGARG = 1100;
+            public static readonly int GSE_OVERFLOW = 8000;
         }
 
         public static int GetLastError()
@@ -35,6 +36,16 @@ namespace GScriptAnalyzer
         public static void SetException(System.Exception exception)
         {
             __M_Status.__systemexception__ = exception;
+        }
+
+        public static void SetLastErrorEx(ErrorData errorData)
+        {
+            __M_Status.__errorData__ = errorData;
+        }
+
+        public static ErrorData GetErrorData()
+        {
+            return __M_Status.__errorData__ ?? new ErrorData(-1,"",-1,"Do not have any execption.");
         }
     }
 }

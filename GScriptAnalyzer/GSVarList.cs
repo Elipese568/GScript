@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GScriptAnalyzer
+namespace GScript.Analyzer
 {
     public class GSVarList : IEnumerator<GSVarListItem>
     {
@@ -53,7 +53,7 @@ namespace GScriptAnalyzer
             m_current = Start;
         }
 
-        public void AddToEnd(GSVar item)
+        public void AddToEnd(Variable item)
         {
             var e = new GSVarListItem();
             e.m_prev = End;
@@ -62,7 +62,7 @@ namespace GScriptAnalyzer
             m_end = e;
         }
 
-        public void AddToStart(GSVar item)
+        public void AddToStart(Variable item)
         {
             var e = new GSVarListItem();
             e.m_prev = null;
@@ -71,14 +71,14 @@ namespace GScriptAnalyzer
             m_start = e;
         }
 
-        public GSVar RemoveEnd()
+        public Variable RemoveEnd()
         {
             var e = End.Prev;
             m_end = e;
             return e.Value;
         }
 
-        public GSVar RemoveStart()
+        public Variable RemoveStart()
         {
             var e = Start.Prev;
             m_start = e;
@@ -105,14 +105,14 @@ namespace GScriptAnalyzer
             return cur;
         }
 
-        public void InsertForce(int index,GSVar v)
+        public void InsertForce(int index,Variable v)
         {
             var t = GetIndexItemVal(index);
             var it = new GSVarListItem { m_var = v, m_prev = t, m_next = GetIndexItemRef(index + 1) };
             GetIndexItemRef(index).m_next = it;
             GetIndexItemRef(index + 1).m_prev = it;
         }
-        public void InsertBack(int index, GSVar v)
+        public void InsertBack(int index, Variable v)
         {
             var t = GetIndexItemVal(index);
             var it = new GSVarListItem { m_var = v, m_prev = GetIndexItemRef(index-1), m_next = t };

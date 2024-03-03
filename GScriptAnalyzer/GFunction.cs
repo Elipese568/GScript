@@ -5,9 +5,9 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GScriptAnalyzer
+namespace GScript.Analyzer
 {
-    public class GSFunction
+    public class GFunction
     {
         public static void Test()
         {
@@ -20,14 +20,14 @@ namespace GScriptAnalyzer
                     ),
                     Expression.Block(
                         Expression.Call(
-                            typeof(Console).GetMethod("WriteLine", new Type[] { typeof(string) }),
+                            typeof(Console).GetMethod("WriteLine", new System.Type[] { typeof(string) }),
                             Expression.Constant("True.")
                         ),
                         Expression.Assign(v, Expression.Constant(1))
                     )
                 ),
                 Expression.Call(
-                    typeof(Console).GetMethod("WriteLine",new Type[] {typeof(int)}),
+                    typeof(Console).GetMethod("WriteLine",new System.Type[] {typeof(int)}),
                     v
                 )
             ));

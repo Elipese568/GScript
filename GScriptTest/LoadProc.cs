@@ -1,17 +1,17 @@
-﻿using GScriptAnalyzer;
-using GScriptAnalyzer.Exception;
+﻿using GScript.Analyzer;
+using GScript.Analyzer.Exception;
 namespace GScriptTest;
 
 internal partial class Program
 {
     public static Stack<int> whilestack = new Stack<int>();
 
-    public static void LoadProc(in GSScript gss)
+    public static void LoadProc(in Script gss)
     {
         // out command
         gss.RegisterCommandHandler("out", (
             OutFunction, 
-            new GSCommandArgumentOptions()
+            new CommandArgumentOptions()
             {
                 VaildArgumentParenthesis = false,
                 VaildArgumentCount = true,
@@ -23,7 +23,7 @@ internal partial class Program
         // input command
         gss.RegisterCommandHandler("input", (
             InputFunction,
-            new GSCommandArgumentOptions()
+            new CommandArgumentOptions()
             {
                 VaildArgumentType = false,
                 VaildArgumentCount = true,
@@ -37,13 +37,13 @@ internal partial class Program
         // while command
         gss.RegisterCommandHandler("while", (
             WhileFunction,
-            new GSCommandArgumentOptions()
+            new CommandArgumentOptions()
             {
                 VaildArgumentCount = true,
                 VaildArgumentParenthesis = true,
                 VaildArgumentType = true,
                 CountRange = new Range(1,1),
-                ArgumentTypePairs = new List<Type>() { typeof(long) },
+                ArgumentTypePairs = new () { typeof(long) },
                 ArgumentParenthesisTypePairs = new List<GScriptAnalyzer.Util.ParenthesisType> 
                 { GScriptAnalyzer.Util.ParenthesisType.Middle}
             }
@@ -52,7 +52,7 @@ internal partial class Program
         // break command
         gss.RegisterCommandHandler("break", (
             BreakFunction,
-            new GSCommandArgumentOptions(){
+            new CommandArgumentOptions(){
                 VaildArgumentCount = true,
                 VaildArgumentParenthesis = false,
                 VaildArgumentType = false,
@@ -63,7 +63,7 @@ internal partial class Program
         // if command
         gss.RegisterCommandHandler("if", (
             IfFunction,
-            new GSCommandArgumentOptions()
+            new CommandArgumentOptions()
             {
                 VaildArgumentCount = true,
                 VaildArgumentParenthesis = false,
@@ -74,7 +74,7 @@ internal partial class Program
 
         // goto command
 
-        static bool Compare(GSObject a, GSObject b, string compflag)
+        static bool Compare(ScriptObject a, ScriptObject b, string compflag)
         {
             switch(compflag)
             {
@@ -96,12 +96,12 @@ internal partial class Program
         }
 
         //if [number:1] [flag:iff:==] [number:2] [number:3]
-        static bool IfFunction(GSCommand cmd, ref int line)
+        static bool IfFunction(Command cmd, ref int line)
         {
             try
             {
                 var arg = cmd.Args;
-                var result = Compare(arg[0], arg[2], (arg[1] as GSFlag).FlagValue);
+                var result = Compare(arg[0], arg[2], (arg[1] as Flag).FlagValue);
                 if (!result)
                 {
                     line = arg[3].As<int>();
@@ -110,25 +110,25 @@ internal partial class Program
             }
             catch(Exception ex)
             {
-                GSPublic.SetException(ex);
+                ExceptionOperator.SetException(ex);
                 return false;
             }
         
         }
 
-        static bool BreakFunction(GSCommand cmd, ref int line)
+        static bool BreakFunction(Command cmd, ref int line)
         {
             if(whilestack.Count == 0)
             {
-                GSPublic.SetException(new Exception("Current have not while stack."));
-                GSPublic.SetLastError(GSPublic.GSErrorCode.GSE_ILLEGALCOMMAND);
+                ExceptionOperator.SetException(new Exception("Current have not while stack."));
+                ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_ILLEGALCOMMAND);
                 return false;
             }
             line = whilestack.Pop();
             return true;
         }
 
-        static bool WhileFunction(GSCommand cmd, ref int line)
+        static bool WhileFunction(Command cmd, ref int line)
         {
             var arg = cmd.Args;
             if(!whilestack.Contains(line))
@@ -137,19 +137,19 @@ internal partial class Program
             return true;
         }
 
-        static bool InputFunction(GSCommand cmd, ref int line)
+        static bool InputFunction(Command cmd, ref int line)
         {
             var arg = cmd.Args;
             if (cmd.TypeArgPairs[arg[0]] == GScriptAnalyzer.Util.ParenthesisType.Small)
             {
-                GSScript.CurrentScript.Vars[(arg[0] as GSVar).Name].Value = Console.ReadLine();
+                Script.CurrentScript.Vars[(arg[0] as Variable).Name].Value = Console.ReadLine();
                 return true;
             }
-            GSPublic.SetLastError(GSPublic.GSErrorCode.GSE_WRONGARG);
+            ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_WRONGARG);
             return false;
         }
 
-        static bool OutFunction(GSCommand cmd, ref int line)
+        static bool OutFunction(Command cmd, ref int line)
         {
             var arg = cmd.Args;
             if (arg.Count == 1)
@@ -157,14 +157,14 @@ internal partial class Program
                 switch (cmd.TypeArgPairs[arg[0]])
                 {
                     case GScriptAnalyzer.Util.ParenthesisType.Small:
-                        Console.WriteLine(GSScript.CurrentScript.Vars[(arg[0] as GSVar).Name].Value);
+                        Console.WriteLine(Script.CurrentScript.Vars[(arg[0] as Variable).Name].Value);
                         return true;
                     case GScriptAnalyzer.Util.ParenthesisType.Middle:
                         Console.WriteLine(arg[0].Value);
                         return true;
                     default:
-                        GSPublic.SetLastError(GSPublic.GSErrorCode.GSE_WRONGARG);
-                        GSPublic.SetException(new ArgFormatException("Argument parenthesis should small or middle"));
+                        ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_WRONGARG);
+                        ExceptionOperator.SetException(new ArgFormatException("Argument parenthesis should small or middle"));
                         return false;
                 }
 
@@ -174,7 +174,7 @@ internal partial class Program
                 if (cmd.TypeArgPairs[arg[0]] == GScriptAnalyzer.Util.ParenthesisType.Small)
                 {
                     if (cmd.TypeArgPairs[arg[0]] == GScriptAnalyzer.Util.ParenthesisType.Small)
-                        Console.WriteLine(GSScript.CurrentScript.Vars[(arg[0] as GSVar).Name].Value);
+                        Console.WriteLine(Script.CurrentScript.Vars[(arg[0] as Variable).Name].Value);
                     return true;
                 }
                 Console.WriteLine(arg[0].Value);

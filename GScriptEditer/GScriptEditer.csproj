@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -8,11 +8,17 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GScriptAnalyzer\GScript.Analyzer.csproj" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+    <PackageReference Include="TrueColorConsole" Version="1.0.2" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="test.gs">
+    <ProjectReference Include="..\GScriptAnalyzer\GScript.Analyzer.csproj" />
+    <ProjectReference Include="C:\Users\Administrator.DESKTOP-38EEGUF\source\repos\EUtility\EUtility.Console.BottomMessage\EUtility.ConsoleEx.Message.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Standard.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

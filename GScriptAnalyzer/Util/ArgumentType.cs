@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GScriptAnalyzer.Util
+namespace GScript.Analyzer.Util
 {
     public enum ArgumentType
     {

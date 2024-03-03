@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "GScriptEditer": {
+      "commandName": "Project",
+      "commandLineArgs": "Standard.json"
+    }
+  }
+}

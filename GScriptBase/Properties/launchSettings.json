@@ -1,0 +1,25 @@
+{
+  "profiles": {
+    "GScriptBase": {
+      "commandName": "Project",
+      "commandLineArgs": "r D:\\Files\\GScriptAnalyzer\\GScriptBase\\std\\114514.gs"
+    }
+  }
+}
+
+
+{
+  "bpm": {
+    {
+      "time": [ 0, 0, 1 ],
+      "bpm" : 132.0
+    }
+  },
+  "videos": [
+    {
+      "path": "bga.mp4",
+      "time": [ 0, 0, 1 ],
+      ...
+    }
+  ]
+}

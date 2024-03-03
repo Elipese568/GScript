@@ -1,0 +1,508 @@
+﻿{
+  "InterpreterPath": "D:\\Files\\GScriptAnalyzer\\GScriptBase\\bin\\Debug\\net6.0\\GScriptStandard.exe",
+  "ColorStyle": {
+    "Control": {
+      "ForegroundColor": {
+        "R": 216,
+        "G": 160,
+        "B": 223
+      },
+      "BackgroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      }
+    },
+    "CritialVariable": {
+      "ForegroundColor": {
+        "R": 24,
+        "G": 98,
+        "B": 160
+      },
+      "BackgroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      }
+    },
+    "Variable": {
+      "ForegroundColor": {
+        "R": 156,
+        "G": 220,
+        "B": 254
+      },
+      "BackgroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      }
+    },
+    "Type": {
+      "ForegroundColor": {
+        "R": 73,
+        "G": 191,
+        "B": 140
+      },
+      "BackgroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      }
+    },
+    "String": {
+      "ForegroundColor": {
+        "R": 214,
+        "G": 157,
+        "B": 133
+      },
+      "BackgroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      }
+    },
+    "Char": {
+      "ForegroundColor": {
+        "R": 214,
+        "G": 157,
+        "B": 133
+      },
+      "BackgroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      }
+    },
+    "Digit": {
+      "ForegroundColor": {
+        "R": 181,
+        "G": 206,
+        "B": 168
+      },
+      "BackgroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      }
+    },
+    "Float": {
+      "ForegroundColor": {
+        "R": 181,
+        "G": 206,
+        "B": 168
+      },
+      "BackgroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      }
+    },
+    "Boolean": {
+      "ForegroundColor": {
+        "R": 86,
+        "G": 156,
+        "B": 214
+      },
+      "BackgroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      }
+    },
+    "KnownType": {
+      "ForegroundColor": {
+        "R": 86,
+        "G": 156,
+        "B": 214
+      },
+      "BackgroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      }
+    },
+    "Operator": {
+      "ForegroundColor": {
+        "R": 200,
+        "G": 200,
+        "B": 200
+      },
+      "BackgroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      }
+    },
+    "Symbol": {
+      "ForegroundColor": {
+        "R": 180,
+        "G": 180,
+        "B": 180
+      },
+      "BackgroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      }
+    },
+    "Tag": {
+      "ForegroundColor": {
+        "R": 160,
+        "G": 160,
+        "B": 160
+      },
+      "BackgroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      }
+    },
+    "Definition": {
+      "ForegroundColor": {
+        "R": 45,
+        "G": 122,
+        "B": 185
+      },
+      "BackgroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      }
+    },
+    "Special": {
+      "ForegroundColor": {
+        "R": 132,
+        "G": 21,
+        "B": 85
+      },
+      "BackgroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      }
+    },
+    "Property": {
+      "ForegroundColor": {
+        "R": 231,
+        "G": 231,
+        "B": 231
+      },
+      "BackgroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      }
+    },
+    "Expression": {
+      "ForegroundColor": {
+        "R": 76,
+        "G": 116,
+        "B": 221
+      },
+      "BackgroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      }
+    },
+    "Parenthesis": {
+      "ForegroundColor": {
+        "R": 165,
+        "G": 86,
+        "B": 88
+      },
+      "BackgroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      }
+    },
+    "Text": {
+      "ForegroundColor": {
+        "R": 250,
+        "G": 250,
+        "B": 250
+      },
+      "BackgroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      }
+    },
+    "Split": {
+      "ForegroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      },
+      "BackgroundColor": {
+        "R": -1,
+        "G": -1,
+        "B": -1
+      }
+    }
+  },
+  "CritialVariable": [
+    {
+      "Type": "CritialVariable",
+      "RawString": "$RET$"
+    },
+    {
+      "Type": "CritialVariable",
+      "RawString": "$ARG$"
+    },
+    {
+      "Type": "CritialVariable",
+      "RawString": "$ARG1$"
+    },
+    {
+      "Type": "CritialVariable",
+      "RawString": "$ARG2$"
+    },
+    {
+      "Type": "CritialVariable",
+      "RawString": "$ARG3$"
+    },
+    {
+      "Type": "CritialVariable",
+      "RawString": "$ARG4$"
+    },
+    {
+      "Type": "CritialVariable",
+      "RawString": "$ARG5$"
+    },
+    {
+      "Type": "CritialVariable",
+      "RawString": "$ARG6$"
+    },
+    {
+      "Type": "CritialVariable",
+      "RawString": "$ARG7$"
+    },
+    {
+      "Type": "CritialVariable",
+      "RawString": "$SELF$"
+    },
+    {
+      "Type": "CritialVariable",
+      "RawString": "$VST$"
+    },
+    {
+      "Type": "CritialVariable",
+      "RawString": "$VSP$"
+    },
+    {
+      "Type": "CritialVariable",
+      "RawString": "$CRET$"
+    }
+  ],
+  "Control": [
+    {
+      "Type": "Control",
+      "RawString": "jmp"
+    },
+    {
+      "Type": "Control",
+      "RawString": "jmpc"
+    },
+    {
+      "Type": "Control",
+      "RawString": "callFunc"
+    }
+  ],
+  "KnownType": [
+    {
+      "Type": "KnownType",
+      "RawString": "string",
+      "ConstantType": "String"
+    },
+    {
+      "Type": "KnownType",
+      "RawString": "String",
+      "ConstantType": "String"
+    },
+    {
+      "Type": "KnownType",
+      "RawString": "number",
+      "ConstantType": "Digit"
+    },
+    {
+      "Type": "KnownType",
+      "RawString": "Int",
+      "ConstantType": "Digit"
+    },
+    {
+      "Type": "KnownType",
+      "RawString": "Long",
+      "ConstantType": "Digit"
+    },
+    {
+      "Type": "KnownType",
+      "RawString": "long_number",
+      "ConstantType": "Digit"
+    },
+    {
+      "Type": "KnownType",
+      "RawString": "float",
+      "ConstantType": "Float"
+    },
+    {
+      "Type": "KnownType",
+      "RawString": "Float",
+      "ConstantType": "Float"
+    },
+    {
+      "Type": "KnownType",
+      "RawString": "bool",
+      "ConstantType": "Boolean"
+    },
+    {
+      "Type": "KnownType",
+      "RawString": "Bool",
+      "ConstantType": "Boolean"
+    },
+    {
+      "Type": "KnownType",
+      "RawString": "char",
+      "ConstantType": "Char"
+    },
+    {
+      "Type": "KnownType",
+      "RawString": "flag"
+    },
+    {
+      "Type": "KnownType",
+      "RawString": "tag_t",
+      "ConstantType": "Tag"
+    },
+    {
+      "Type": "KnownType",
+      "RawString": "any",
+      "ConstantType": "Text"
+    }
+  ],
+  "Operator": [
+    {
+      "Type": "Operator",
+      "RawString": "assign"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "push"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "pull"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "peek"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "add"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "sub"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "mul"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "div"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "addF"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "subF"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "mulF"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "divF"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "addL"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "subL"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "mulL"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "divL"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "comp"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "conv"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "revs"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "aloc"
+    }
+  ],
+  "Tag": [
+    {
+      "Type": "Tag",
+      "RawString": "tag"
+    }
+  ],
+  "Definition": [
+    {
+      "Type": "Definition",
+      "RawString": "defFunc"
+    },
+    {
+      "Type": "Definition",
+      "RawString": "defFuncEnd"
+    },
+    {
+      "Type": "Definition",
+      "RawString": "defClass"
+    },
+    {
+      "Type": "Definition",
+      "RawString": "defClassEnd"
+    },
+    {
+      "Type": "Definition",
+      "RawString": "defDyVar"
+    },
+    {
+      "Type": "Definition",
+      "RawString": "remVar"
+    },
+    {
+      "Type": "Definition",
+      "RawString": "prop"
+    }
+  ],
+  "Special": [
+    {
+      "Type": "Special",
+      "RawString": "len"
+    }
+  ]
+}

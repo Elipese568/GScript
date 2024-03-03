@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GScriptAnalyzer.Exception
+namespace GScript.Analyzer.Exception
 {
     public class ArgFormatException : System.Exception
     {

@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GScriptAnalyzer
+namespace GScript.Analyzer
 {
-    public class GSHead
+    public class Head
     {
         private DateTime? time;
         private string? author;
@@ -15,9 +15,9 @@ namespace GScriptAnalyzer
         public DateTime? Time { get => time; set => time = value; }
         public string? Author { get => author; set => author = value; }
 
-        public GSHead() { }
+        public Head() { }
 
-        public GSHead(DateTime? atime, string? aauthor)
+        public Head(DateTime? atime, string? aauthor)
         {
             time = atime;
             author = aauthor;

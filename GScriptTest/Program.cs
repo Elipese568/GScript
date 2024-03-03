@@ -1,4 +1,4 @@
-﻿using GScriptAnalyzer;
+﻿using GScript.Analyzer;
 
 namespace GScriptTest;
 
@@ -7,7 +7,7 @@ internal partial class Program
     static int Main(string[] args)
     {
         //GSFunction.Test();
-        GSScript gss = new GSScript();
+        Script gss = new Script();
         gss.Open("test.gs");
         LoadProc(in gss);
         bool result = gss.Execute();
@@ -17,7 +17,7 @@ internal partial class Program
         }
         else
         {
-            return GSPublic.GetLastError();
+            return ExceptionOperator.GetLastError();
         }
     }
 }

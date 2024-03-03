@@ -4,16 +4,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GScriptAnalyzer
+namespace GScript.Analyzer
 {
     public class GSVarListItem
     {
         internal GSVarListItem? m_next;
         internal GSVarListItem? m_prev;
-        internal GSVar? m_var;
+        internal Variable? m_var;
 
         public GSVarListItem? Next => m_next;
         public GSVarListItem? Prev => m_prev;
-        public GSVar? Value => m_var;
+        public Variable? Value => m_var;
     }
 }
