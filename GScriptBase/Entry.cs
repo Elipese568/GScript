@@ -1690,7 +1690,7 @@ internal class Entry
         ));
 
         script.RegisterCommandHandler("addBL", (
-            AddLCommand,
+            AddBLCommand,
             new CommandArgumentOptions()
             {
                 CountRange = new Range(2, 2),
@@ -1703,7 +1703,7 @@ internal class Entry
         ));
 
         script.RegisterCommandHandler("subBL", (
-            SubLCommand,
+            SubBLCommand,
             new CommandArgumentOptions()
             {
                 CountRange = new Range(2, 2),
@@ -1716,7 +1716,7 @@ internal class Entry
         ));
 
         script.RegisterCommandHandler("mulBL", (
-            MulLCommand,
+            MulBLCommand,
             new CommandArgumentOptions()
             {
                 CountRange = new Range(2, 2),
@@ -1729,7 +1729,7 @@ internal class Entry
         ));
 
         script.RegisterCommandHandler("divBL", (
-            DivLCommand,
+            DivBLCommand,
             new CommandArgumentOptions()
             {
                 CountRange = new Range(2, 2),
