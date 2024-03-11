@@ -227,6 +227,33 @@ internal class Entry
             return true;
         }
 
+        bool SysTypeStaticCallCommand(Command cmd, ref int line)
+        {
+            ObjectType? Type = (cmd.Args[0] as ObjectType);
+            Type t = Type.Value as Type;
+            var method = t.GetMethod(cmd.Args[1].Value as string, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static, cmd.Args.Count > 2 ? cmd.Args.ToArray()[2..].Select(x => DeBox(x).GetType()).ToArray() : Array.Empty<Type>());
+
+            List<object> param = new();
+
+            int i = 0;
+            foreach (var pi in method.GetParameters())
+            {
+                param.Add(Convert.ChangeType(cmd.Args[2 + i].Value, pi.ParameterType));
+                i++;
+            }
+
+            if (method.ReturnType == typeof(void))
+            {
+                method.Invoke(null, param.ToArray());
+            }
+            else
+            {
+                Script.CurrentScript.SetVar(M_CommandResult, method.Invoke(cmd.Args[0].Value, param.ToArray()));
+            }
+
+            return true;
+        }
+
         bool AssignCommand(Command cmd, ref int line)
         {
             if (cmd.Args[0] as Variable != null && (cmd.Args[0] as Variable).Name == M_ValueStackTop)
@@ -1038,7 +1065,7 @@ internal class Entry
             return false;
         }
 
-        bool CompareCommand(Command cmd, ref int line)
+        bool CompCommand(Command cmd, ref int line)
         {
             Script.CurrentScript.SetVar(M_CommandResult, CompareInternal(cmd.Args[1].Value, cmd.Args[2].Value, (cmd.Args[0] as Flag).FlagValue));
             return true;
@@ -1183,6 +1210,32 @@ internal class Entry
         bool CallMemberCommand(Command cmd, ref int line)
         {
             int orgline = line;
+
+            if ((cmd.Args[1] as ObjectType).Exists)
+            {
+                Type t = (cmd.Args[1] as ObjectType).Value as Type;
+                var method = t.GetMethod(cmd.Args[2].Value as string, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance, cmd.Args.Count > 3? cmd.Args.ToArray()[3..].Select(x => DeBox(x).GetType()).ToArray() : Array.Empty<Type>());
+
+                List<object> param = new();
+
+                int i = 0;
+                foreach(var pi in method.GetParameters())
+                {
+                    param.Add(Convert.ChangeType(cmd.Args[3 + i].Value, pi.ParameterType));
+                }
+
+                if (method.ReturnType == typeof(void))
+                {
+                    method.Invoke(cmd.Args[0].Value, param.ToArray());
+                }
+                else
+                {
+                    Script.CurrentScript.SetVar(M_CommandResult, method.Invoke(cmd.Args[0].Value, param.ToArray()));
+                }
+
+                return true;
+            }
+
             if (VariableIsDelcarClass(cmd))
             {
                 ErrorData ed = new(line, cmd.ToCommandString(), new ArgumentException("SELF object is not delcar. to this class."), "SELF object is not delcar. to this class.");
@@ -1203,6 +1256,12 @@ internal class Entry
         // getProp Variable Type MemberName
         bool GetPropCommand(Command cmd, ref int line)
         {
+            if ((cmd.Args[1] as ObjectType).Exists)
+            {
+                Type t = (cmd.Args[1] as ObjectType).Value as Type;
+                Script.CurrentScript.SetVar(M_CommandResult, t.GetProperty(cmd.Args[2].Value as string).GetValue(cmd.Args[0].Value));
+                return true;
+            }
             if (VariableIsDelcarClass(cmd))
             {
                 ErrorData ed = new(line, cmd.ToCommandString(), new ArgumentException("SELF object is not delcar. to this class."), "SELF object is not delcar. to this class.");
@@ -1229,8 +1288,27 @@ internal class Entry
             return ((cmd.Args[1] as ObjectType).Value as string) != (cmd.Args[0].Value as ClassInstance).ClassName;
         }
 
+        object DeBox(ScriptObject scriptObject)
+        {
+            if(scriptObject is not Variable)
+            {
+                return scriptObject.Value;
+            }
+            else
+            {
+                return DeBox(scriptObject.Value as ScriptObject);
+            }
+        }
+
         bool SetPropCommand(Command cmd, ref int line)
         {
+            if ((cmd.Args[1] as ObjectType).Exists)
+            {
+                Type t = (cmd.Args[1] as ObjectType).Value as Type;
+                t.GetProperty(cmd.Args[2].Value as string).SetValue(cmd.Args[0].Value, DeBox(cmd.Args[3]));
+                return true;
+            }
+
             if (VariableIsDelcarClass(cmd))
             {
                 ErrorData ed = new(line, cmd.ToCommandString(), new ArgumentException("SELF object is not delcar. to this class."), "SELF object is not delcar. to this class.");
@@ -1239,7 +1317,7 @@ internal class Entry
             }
 
             var instance = (cmd.Args[0].Value as ClassInstance);
-            return instance.SetProperty(cmd.Args[2].Value as string, cmd.Args[3].Value);
+            return instance.SetProperty(cmd.Args[2].Value as string, DeBox(cmd.Args[3]));
         }
 
         bool DefClassEndCommand(Command cmd, ref int line)
@@ -1262,6 +1340,7 @@ internal class Entry
         bool InitCommand(Command cmd, ref int line)
         {
             int orgline = line;
+
             if(!_classTemplateTable.ContainsKey((cmd.Args[1] as ObjectType).Value as string))
             {
                 ErrorData ed = new ErrorData(line, cmd.ToCommandString(), new ArgumentException("Class " + ((cmd.Args[1] as ObjectType).Value as string) + " not in this script. (maybe not include?)"), "Class " + ((cmd.Args[1] as ObjectType).Value as string) + " not in this script. (maybe not include?)");
@@ -1703,8 +1782,8 @@ internal class Entry
         ));
 
 
-        script.RegisterCommandHandler("compare", (
-            CompareCommand,
+        script.RegisterCommandHandler("comp", (
+            CompCommand,
             new CommandArgumentOptions()
             {
                 CountRange = new Range(3, 3),
@@ -1882,7 +1961,45 @@ internal class Entry
                 },
                 ArgumentTypePairs = new()
                 {
-                    typeof(ClassInstance),
+                    typeof(object),
+                    typeof(ObjectType),
+                    "function",
+                    TypeField.Object,
+                    TypeField.Object,
+                    TypeField.Object,
+                    TypeField.Object,
+                    TypeField.Object,
+                    TypeField.Object,
+                    TypeField.Object,
+                    TypeField.Object
+                }
+            }
+        ));
+
+
+        script.RegisterCommandHandler("sysTypeStaticCall", (
+            SysTypeStaticCallCommand,
+            new CommandArgumentOptions()
+            {
+                CountRange = new Range(2, 10),
+                VaildArgumentCount = true,
+                VaildArgumentType = true,
+                VaildArgumentParenthesis = true,
+                ArgumentParenthesisTypePairs = new()
+                {
+                    ParenthesisType.Big,
+                    ParenthesisType.Middle,
+                    ParenthesisType.Unknown,
+                    ParenthesisType.Unknown,
+                    ParenthesisType.Unknown,
+                    ParenthesisType.Unknown,
+                    ParenthesisType.Unknown,
+                    ParenthesisType.Unknown,
+                    ParenthesisType.Unknown,
+                    ParenthesisType.Unknown
+                },
+                ArgumentTypePairs = new()
+                {
                     typeof(ObjectType),
                     "function",
                     TypeField.Object,
@@ -1914,7 +2031,7 @@ internal class Entry
                 },
                 ArgumentTypePairs = new()
                 {
-                    typeof(ClassInstance),
+                    typeof(object),
                     typeof(ObjectType),
                     "property"
                 }
@@ -1939,7 +2056,7 @@ internal class Entry
                 },
                 ArgumentTypePairs = new()
                 {
-                    typeof(ClassInstance),
+                    typeof(object),
                     typeof(ObjectType),
                     "property",
                     TypeField.Object

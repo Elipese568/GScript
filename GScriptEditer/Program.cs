@@ -10,7 +10,9 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Net.Mime;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
 using System.Security.Principal;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -20,7 +22,7 @@ using System.Xml.Linq;
 using TrueColorConsole;
 using static System.Net.Mime.MediaTypeNames;
 
-namespace GScriptEditer;
+namespace GScript.Editer;
 
 
 internal class Program
@@ -88,7 +90,7 @@ internal class Program
             Console.Write("      ");
             Console.CursorLeft = 0;
             Console.Write(line);
-            Console.CursorLeft = 6;
+            Console.CursorLeft = TextAreaPaddingLeft;
             foreach(var u in l)
             {
                 if (ConfigStyle.ColorStyle[u.Type].ForegroundColor.Equals(_none))
@@ -213,6 +215,9 @@ internal class Program
         public void Selected() { throw new NotImplementedException(); }
     }
 
+    const int TextAreaPaddingLeft = 6;
+    const int TabSize = 4;
+
     [DllImport("User32.dll")]
     public extern static int MessageBoxA(IntPtr ptr, string message, string caption, uint flag);
 
@@ -239,7 +244,7 @@ internal class Program
 
                         int result = MessageBoxA(new(0), $"This editer has content, do you want to save this to {(string.IsNullOrEmpty(FileName)? "untitled.gs" : FileName)}?", "Caption", (uint)(ync | infomationicon));
 
-                        int yes = 6;
+                        int yes = TextAreaPaddingLeft;
                         int no = 7;
                         int cancel = 2;
 
@@ -272,7 +277,7 @@ internal class Program
                     raw = new();
                     for(int p = 0; p < 4000; p++)
                     {
-                        raw.Add("");
+                        raw.Add(string.Empty);
                     }
 
                     Dictionary<string, KeyUnit> keys = new();
@@ -287,7 +292,7 @@ internal class Program
                         i++;
                     }
                     FileName = fi.FullName;
-                    col = 6;
+                    col = TextAreaPaddingLeft;
                     row = 0;
                 }),
                 new SeparationItem(),
@@ -524,7 +529,7 @@ internal class Program
 
         return line;
     }
-    static string _fn = "";
+    static string _fn = string.Empty;
 
     static string FileName
     {
@@ -536,12 +541,14 @@ internal class Program
         }
     }
 
-    static int col = 6;
+    static int col = TextAreaPaddingLeft;
     static int row = 0;
     static int previewpage = 0;
     static int editpage = 0;
 
     static int EditRow => row + editpage * Console.WindowHeight;
+
+    static Func<T> DefaultValue<T>(T value) => () => value;
 
     static void Main(string[] args)
     {
@@ -550,7 +557,7 @@ internal class Program
         Units.Add(new());
         for (int i = 0; i < 4000; i++)
         {
-            raw.Add("");
+            raw.Add(string.Empty);
         }
 
         RootCommand _root = new();
@@ -584,8 +591,8 @@ internal class Program
         }, arg);
 
         var Open = new System.CommandLine.Command("Open", "Open file to edit.");
-        var openArg = new Argument<string>("OpenFile", () => "", "Input a path of file to open.");
-        var quietOption = new Option<bool>("Quiet", "When want you to which options, always choose 'Yes'");
+        var openArg = new Argument<string>("OpenFile", DefaultValue(string.Empty), "Input a path of file to open.");
+        var quietOption = new Option<bool>("Quiet", DefaultValue(true), "When want you to which options, always choose 'Yes'");
 
         Open.AddArgument(arg);
         Open.AddArgument(openArg);
@@ -652,9 +659,9 @@ EM:
         _root.Invoke(args);
     }
 
-    static void EditorMain(string configpath, string? filepath = null)
+    static void EditorMain(string configPath, string? filePath = null)
     {
-        ConfigStyle = JsonSerializer.Deserialize<StyleTable>(File.ReadAllText(configpath), new JsonSerializerOptions
+        ConfigStyle = JsonSerializer.Deserialize<StyleTable>(File.ReadAllText(configPath), new JsonSerializerOptions
         {
             WriteIndented = true
         });
@@ -663,9 +670,9 @@ EM:
         var all = ConfigStyle.GetList();
         all.ForEach(x => keys.Add(x.RawString, x));
 
-        string currentstring = "";
+        string currentString = string.Empty;
 
-        int tabc = 0;
+        int tabCount = 0;
 
         bool isPreviewMode = false;
 
@@ -690,7 +697,7 @@ EM:
                 {
                     var file = ~FileList.FileDialog(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
                     if (file.IsVoid())
-                        return;
+                        continue;
 
                     File.WriteAllLines((file as FileInfo).FullName, content);
                 }
@@ -707,7 +714,7 @@ EM:
                 var content = GetContentArea();
                 var file = ~FileList.FileDialog(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
                 if (file.IsVoid())
-                    return;
+                    continue;
 
                 File.WriteAllLines((file as FileInfo).FullName, content);
             }
@@ -733,7 +740,67 @@ EM:
                 editpage = p;
                 goto whileStart;
             }
-            else if(key.KeyChar is ' ' or '\n' || key.KeyChar > '0')
+            else if(key.Key == ConsoleKey.V && key.Modifiers == (ConsoleModifiers.Shift | ConsoleModifiers.Control))
+            {
+                string clipboardContent = Clipboard.Native.GetCurrentClipboardContent();
+                if (clipboardContent == null)
+                    goto whileStartNonPrint;
+
+                const string NewLine = "\uABCD";
+
+                string replacedContent = clipboardContent.Replace("\r\n", NewLine)
+                                                         .Replace("\r", NewLine)
+                                                         .Replace("\n", NewLine);
+
+                string[] contentLines = replacedContent.Split(NewLine);
+
+                string afterString = string.Empty;
+
+                int realcol = col - TextAreaPaddingLeft - 1;
+
+                if (realcol > 0 && raw[EditRow].Length > realcol)
+                {
+                    afterString = raw[EditRow][realcol..];
+                    raw[EditRow] = raw[EditRow][..(realcol - 1)];
+                }
+
+                int insertLineCount = contentLines.Length - 2;
+                if (insertLineCount < 0)
+                    insertLineCount = 0;
+
+                raw[EditRow] += contentLines[0];
+                Units[EditRow] = GetUnits(keys, raw[EditRow]);
+
+                if (contentLines.Length == 1)
+                    continue;
+
+                string[] insertLines = contentLines[1..^1];
+
+                if (insertLineCount != 0)
+                {
+                    raw.InsertRange(EditRow + 1, insertLines);
+                    
+                    if (Units.Count < insertLines.Length)
+                        Units.AddRange(insertLines.Select(x => GetUnits(keys, x)));
+                    else
+                        Units.InsertRange(EditRow + 1, insertLines.Select(x => GetUnits(keys, x)));
+                }
+
+                if(insertLineCount > -1)
+                {
+                    string lastLine = contentLines[^1] + afterString;
+                    raw[EditRow + 1 + insertLineCount] = lastLine;
+                    if (Units.Count < EditRow + 1)
+                        Units.Add(GetUnits(keys, lastLine));
+                    else
+                        Units.Insert(EditRow + 1 + insertLineCount, GetUnits(keys, lastLine));
+                }
+
+                currentString = raw[EditRow];
+                col += contentLines[0].Length;
+                continue;
+            }
+            else if(key.KeyChar is ' ' or '\n' || key.KeyChar >= '0')
             {
                 // Other keys
                 if (BackTemp.Count != 0)
@@ -756,24 +823,25 @@ EM:
                     isPreviewMode = false;
                     row++;
 
-                    if (row >= Console.WindowHeight && editpage > 0)
+                    if (row >= (Console.WindowHeight - 1))
                     {
-                        editpage--;
+                        editpage++;
                         row = 0;
+                        continue;
                     }
                     else if (row < Console.WindowHeight)
                     {
                         goto whileStartNonPrint;
                     }
 
-                    if (raw[EditRow].Length != 0 && raw[EditRow].Length + 6 < col)
+                    if (raw[EditRow].Length != 0 && raw[EditRow].Length + TextAreaPaddingLeft < col)
                     {
                         VTConsole.CursorAbsoluteVertical(raw[EditRow].Length - 2);
-                        col = raw[EditRow].Length + 6;
+                        col = raw[EditRow].Length + TextAreaPaddingLeft;
                     }
                     else if (raw[EditRow].Length == 0)
                     {
-                        col = 6;
+                        col = TextAreaPaddingLeft;
                     }
                     goto whileStartNonPrint;
                 case ConsoleKey.UpArrow:
@@ -786,7 +854,7 @@ EM:
                         row = Console.WindowHeight - 1;
                         if (raw[EditRow].Length == 0)
                         {
-                            col = 6;
+                            col = TextAreaPaddingLeft;
                         }
                         goto whileStart;
                     }
@@ -796,30 +864,30 @@ EM:
                         goto whileStartNonPrint;
                     }
 
-                    if (raw[EditRow].Length != 0 && raw[EditRow].Length + 6 < col)
+                    if (raw[EditRow].Length != 0 && raw[EditRow].Length + TextAreaPaddingLeft < col)
                     {
-                        VTConsole.CursorAbsoluteVertical(raw[EditRow].Length + 6);
-                        col = raw[EditRow].Length + 6;
+                        VTConsole.CursorAbsoluteVertical(raw[EditRow].Length + TextAreaPaddingLeft);
+                        col = raw[EditRow].Length + TextAreaPaddingLeft;
                     }
                     else if (raw[EditRow].Length == 0)
                     {
-                        col = 6;
+                        col = TextAreaPaddingLeft;
                     }
                     goto whileStartNonPrint;
                 case ConsoleKey.LeftArrow:
                     isPreviewMode = false;
                     col--;
-                    if (col < 6)
+                    if (col < TextAreaPaddingLeft)
                     {
-                        col = 6;
+                        col = TextAreaPaddingLeft;
                     }
                     goto whileStartNonPrint;
                 case ConsoleKey.RightArrow:
                     isPreviewMode = false;
                     col++;
-                    if (col >= raw[EditRow].Length + 6)
+                    if (col >= raw[EditRow].Length + TextAreaPaddingLeft)
                     {
-                        col = raw[EditRow].Length + 6;
+                        col = raw[EditRow].Length + TextAreaPaddingLeft;
                     }
                     goto whileStartNonPrint;
                 case ConsoleKey.Enter:
@@ -829,13 +897,13 @@ EM:
                         Units.Add(new());
                         row = 0;
                         editpage++;
-                        col = tabc * 4 + 6;
+                        col = tabCount * TabSize + TextAreaPaddingLeft;
                         goto whileStart;
                     }
-                    if (col < currentstring.Length + 6)
+                    if (col < currentString.Length + TextAreaPaddingLeft)
                     {
-                        string sub = currentstring.Substring(col - 6);
-                        string front = currentstring[..(col - 6)];
+                        string sub = currentString.Substring(col - TextAreaPaddingLeft);
+                        string front = currentString[..(col - TextAreaPaddingLeft)];
                         var l1 = GetUnits(keys, sub);
                         var l2 = GetUnits(keys, front);
                         Units[EditRow] = l2;
@@ -843,70 +911,70 @@ EM:
                         raw[row + 1] = sub;
                         if (Units.Count - 1 < row + 1)
                         {
-                            Units.Add(Enumerable.Repeat(new KeyUnit() { RawString = "    ", Type = KeyType.Text }, tabc).ToList());
-                            raw.Add(string.Join("", Enumerable.Repeat("    ", tabc)));
+                            Units.Add(Enumerable.Repeat(new KeyUnit() { RawString = "    ", Type = KeyType.Text }, tabCount).ToList());
+                            raw.Add(string.Join(string.Empty, Enumerable.Repeat("    ", tabCount)));
                             Units.Add(l1);
                         }
                         else
                         {
-                            raw.Insert(row + 1, string.Join("", Enumerable.Repeat("    ", tabc)));
-                            Units.Insert(row + 1, Enumerable.Repeat(new KeyUnit() { RawString = "    ", Type = KeyType.Text }, tabc).ToList());
+                            raw.Insert(row + 1, string.Join(string.Empty, Enumerable.Repeat("    ", tabCount)));
+                            Units.Insert(row + 1, Enumerable.Repeat(new KeyUnit() { RawString = "    ", Type = KeyType.Text }, tabCount).ToList());
 
                             Units[row + 1].AddRange(l1);
                         }
                         row++;
-                        col = tabc * 4 + 6;
-                        currentstring = raw[EditRow];
+                        col = tabCount * TabSize + TextAreaPaddingLeft;
+                        currentString = raw[EditRow];
                         goto whileStart;
                     }
-                    else if (col == 6)
+                    else if (col == TextAreaPaddingLeft)
                     {
                         if (Units.Count <= row + Console.WindowHeight * editpage + 1)
                         {
-                            Units.Add(Enumerable.Repeat(new KeyUnit() { RawString = "    ", Type = KeyType.Text }, tabc).ToList());
-                            raw.Add(string.Join("", Enumerable.Repeat("    ", tabc)));
+                            Units.Add(Enumerable.Repeat(new KeyUnit() { RawString = "    ", Type = KeyType.Text }, tabCount).ToList());
+                            raw.Add(string.Join(string.Empty, Enumerable.Repeat("    ", tabCount)));
                         }
                         row++;
-                        col = tabc * 4 + 6;
-                        currentstring = raw[EditRow];
+                        col = tabCount * TabSize + TextAreaPaddingLeft;
+                        currentString = raw[EditRow];
                         goto whileStart;
                     }
 
                     if (Units.Count < row + 1)
                     {
                         Units.Add(new());
-                        raw.Insert(row + 1, string.Join("", Enumerable.Repeat("    ", tabc)));
-                        Units.Insert(row + 1, Enumerable.Repeat(new KeyUnit() { RawString = "    ", Type = KeyType.Text }, tabc).ToList());
+                        raw.Insert(row + 1, string.Join(string.Empty, Enumerable.Repeat("    ", tabCount)));
+                        Units.Insert(row + 1, Enumerable.Repeat(new KeyUnit() { RawString = "    ", Type = KeyType.Text }, tabCount).ToList());
                         row++;
-                        col = tabc * 4 + 6;
-                        currentstring = raw[EditRow];
+                        col = tabCount * TabSize + TextAreaPaddingLeft;
+                        currentString = raw[EditRow];
                         goto whileStart;
                     }
                     else if (Units.Count >= row + 1)
                     {
-                        raw.Insert(row + 1, string.Join("", Enumerable.Repeat("    ", tabc)));
-                        Units.Insert(row + 1, Enumerable.Repeat(new KeyUnit() { RawString = "    ", Type = KeyType.Text }, tabc).ToList());
+                        raw.Insert(row + 1, string.Join(string.Empty, Enumerable.Repeat("    ", tabCount)));
+                        Units.Insert(row + 1, Enumerable.Repeat(new KeyUnit() { RawString = "    ", Type = KeyType.Text }, tabCount).ToList());
                         row++;
-                        col = tabc * 4 + 6;
-                        currentstring = raw[EditRow];
+                        col = tabCount * TabSize + TextAreaPaddingLeft;
+                        currentString = raw[EditRow];
                     }
 
-                    col = tabc * 4 + 6;
+                    col = tabCount * TabSize + TextAreaPaddingLeft;
                     goto whileStart;
                 case ConsoleKey.End:
                     isPreviewMode = false;
-                    col = raw[EditRow].Length + 6;
+                    col = raw[EditRow].Length + TextAreaPaddingLeft;
                     goto whileStart;
                 case ConsoleKey.Home:
                     isPreviewMode = false;
-                    col = 6;
+                    col = TextAreaPaddingLeft;
                     goto whileStart;
                 case ConsoleKey.Tab:
                     isPreviewMode = false;
                     if (Units.Count <= row)
                     {
                         Units.Add(new());
-                        raw.Insert(EditRow, "");
+                        raw.Insert(EditRow, string.Empty);
                     }
                     if (Units[EditRow].Count == 0)
                     {
@@ -914,23 +982,23 @@ EM:
 
                         raw[EditRow] += "    ";
                     }
-                    else if ((col - 6) % 4 == 0)
+                    else if ((col - TextAreaPaddingLeft) % TabSize == 0)
                     {
                         Units[EditRow].Add(MakeUnit("    ", KeyType.Text));
-                        raw[EditRow] = raw[EditRow].Insert(col - 6, "    ");
+                        raw[EditRow] = raw[EditRow].Insert(col - TextAreaPaddingLeft, "    ");
                     }
-                    else if ((col - 6) % 4 != 0)
+                    else if ((col - TextAreaPaddingLeft) % TabSize != 0)
                     {
                         goto whileStart;
                     }
-                    else if (IsOnlyType(raw[EditRow][..(col - 6)], new(@"\s+")))
+                    else if (IsOnlyType(raw[EditRow][..(col - TextAreaPaddingLeft)], new(@"\s+")))
                     {
                         Units[EditRow].Add(MakeUnit("    ", KeyType.Text));
-                        raw[EditRow] = raw[EditRow].Insert(col - 6, "    ");
+                        raw[EditRow] = raw[EditRow].Insert(col - TextAreaPaddingLeft, "    ");
                     }
 
-                    col += 4;
-                    tabc++;
+                    col += TabSize;
+                    tabCount++;
                     goto whileStart;
                 case ConsoleKey.PageUp:
                     if (isPreviewMode && previewpage > 0)
@@ -952,19 +1020,19 @@ EM:
                     goto whileStart;
             }
 
-            currentstring = raw[EditRow];
+            currentString = raw[EditRow];
 
             if (key.Key is ConsoleKey.Backspace or ConsoleKey.Delete)
             {
                 isPreviewMode = false;
-                if (col == 6 && row == 0 && editpage > 0)
+                if (col == TextAreaPaddingLeft && row == 0 && editpage > 0)
                 {
                     if (raw[EditRow].Length == 0)
                     {
                         Units.RemoveAt(EditRow);
                         if (raw[row + editpage * Console.WindowHeight - 1].Length > 0)
                         {
-                            col = raw[row - 1].Length + 6;
+                            col = raw[row - 1].Length + TextAreaPaddingLeft;
                         }
                     }
                     row = Console.WindowHeight - 1;
@@ -972,22 +1040,22 @@ EM:
                     goto whileStart;
                 }
 
-                if (col != 6 && (col - 6) % 4 == 0 && Units[EditRow].Count >= (col == 6 ? 0 : (col - 6) / 4) && Units[EditRow][(col - 6) / 4 - 1].RawString == "    ")
+                if (col != TextAreaPaddingLeft && (col - TextAreaPaddingLeft) % TabSize == 0 && Units[EditRow].Count >= (col == TextAreaPaddingLeft ? 0 : (col - TextAreaPaddingLeft) / TabSize) && Units[EditRow][(col - TextAreaPaddingLeft) / TabSize - 1].RawString == "    ")
                 {
-                    if (tabc > 0)
-                        tabc--;
-                    Units[EditRow].RemoveAt((col - 6) / 4 - 1);
-                    raw[EditRow] = raw[EditRow].Remove((col - 6) / 4 - 1, 4);
-                    col -= 4;
+                    if (tabCount > 0)
+                        tabCount--;
+                    Units[EditRow].RemoveAt((col - TextAreaPaddingLeft) / TabSize - 1);
+                    raw[EditRow] = raw[EditRow].Remove((col - TextAreaPaddingLeft) / TabSize - 1, TabSize);
+                    col -= TabSize;
                     goto whileStart;
                 }
-                if (row == 0 && currentstring.Length == 0)
+                if (row == 0 && currentString.Length == 0)
                 {
                     if (Units.Count == 0)
                         goto whileStart;
                     Units.Remove(Units[EditRow]); goto whileStart;
                 }
-                else if (col == 6)
+                else if (col == TextAreaPaddingLeft)
                 {
                     if (raw[EditRow].Length == 0 && row > 0)
                     {
@@ -995,64 +1063,64 @@ EM:
                         row--;
                         if (raw[EditRow].Length > 0)
                         {
-                            col = raw[EditRow].Length + 6;
+                            col = raw[EditRow].Length + TextAreaPaddingLeft;
                         }
                         goto whileStart;
                     }
                     string bf = raw[row - 1];
                     bf += raw[EditRow];
-                    raw[EditRow] = "";
+                    raw[EditRow] = string.Empty;
                     if (row < Units.Count)
                         Units.RemoveAt(EditRow);
                     raw[row - 1] = bf;
-                    currentstring = bf;
+                    currentString = bf;
                     row--;
-                    col = bf.Length + 6;
-                    var l = GetUnits(keys, currentstring);
+                    col = bf.Length + TextAreaPaddingLeft;
+                    var l = GetUnits(keys, currentString);
                     Units[EditRow] = l;
                     goto whileStart;
                 }
-                if (currentstring.Length == 0)
+                if (currentString.Length == 0)
                 {
                     if (Units.Count - 1 >= row && Units[EditRow] != null)
                     {
                         Units[EditRow] = null;
                         Units.Remove(Units[EditRow]);
                     }
-                    col = raw[row - 1].Length + 6;
+                    col = raw[row - 1].Length + TextAreaPaddingLeft;
                     row--;
                     goto whileStart;
                 }
-                else if (col < currentstring.Length + 6)
+                else if (col < currentString.Length + TextAreaPaddingLeft)
                 {
-                    currentstring = currentstring.Remove(col - 7, 1);
+                    currentString = currentString.Remove(col - 7, 1);
                     col--;
                 }
                 else
                 {
-                    currentstring = currentstring[..^1];
+                    currentString = currentString[..^1];
                     col--;
                 }
             }
             else
             {
                 isPreviewMode = false;
-                if (col - 6 == currentstring.Length)
-                    currentstring += key.KeyChar;
+                if (col - TextAreaPaddingLeft == currentString.Length)
+                    currentString += key.KeyChar;
                 else
-                    currentstring = currentstring.Insert(col - 6, key.KeyChar.ToString());
+                    currentString = currentString.Insert(col - TextAreaPaddingLeft, key.KeyChar.ToString());
                 col++;
             }
             #endregion
-            List<KeyUnit> ku = GetUnits(keys, currentstring);
+            List<KeyUnit> ku = GetUnits(keys, currentString);
 
             if (Units.Count - 1 < row)
                 Units.Add(new());
             Units[EditRow] = ku;
-            raw[EditRow] = currentstring;
+            raw[EditRow] = currentString;
 
             if (!ku.Exists((x) => x.Type == KeyType.Text))
-                History.Push((Units, raw, row, col, editpage));
+                History.Push((Units, raw, EditRow, col, editpage));
         }
     }
 
@@ -1066,19 +1134,19 @@ EM:
 
         while (currentstring.Length > 0 && i < currentstring.Length && currentstring[i] == ' ')
         {
-            if (i != 0 && (i + 1) % 4 == 0)
+            if (i != 0 && (i + 1) % TabSize == 0)
             {
                 ku.Add(MakeUnit("    ", KeyType.Text));
-                currentstring = currentstring.Remove(0, 4);
+                currentstring = currentstring.Remove(0, TabSize);
                 i = 0;
                 continue;
             }
             i++;
         }
-        if (i % 4 != 0)
+        if (i % TabSize != 0)
         {
-            ku.Add(MakeUnit(new(' ', i % 4), KeyType.Text));
-            currentstring.Remove(0, i % 4);
+            ku.Add(MakeUnit(new(' ', i % TabSize), KeyType.Text));
+            currentstring.Remove(0, i % TabSize);
         }
 
         StringSplit split = new(currentstring, ' ');
@@ -1131,11 +1199,12 @@ EM:
                             var sp2 = new StringSplitEx(string.Join(":", sp[1..]), ':', 2);
                             ku1.Add(MakeUnit(sp2[0], KeyType.Tag));
                             ku1.Add(MakeUnit(":", KeyType.Symbol));
-                            ku1.Add(MakeUnit(sp2[1], KeyType.String));
+                            if (sp2.SplitUnit.Count > 1)
+                                ku1.Add(MakeUnit(sp2[1], KeyType.String));
                         }
                         catch
                         {
-                            ku1.Add(MakeUnit(string.Join("", sp[1..]), KeyType.Text));
+                            ku1.Add(MakeUnit(string.Join(string.Empty, sp[1..]), KeyType.Text));
                         }
                         ku.AddRange(ku1);
                     }
@@ -1145,7 +1214,8 @@ EM:
                     }
                     else if(keys[sp[0]].Type == KeyType.KnownType && 
                             keys[sp[0]].ConstantType.HasValue &&
-                            keys[sp[0]].ConstantType.Value != KeyType.Unknown)
+                            keys[sp[0]].ConstantType.Value != KeyType.Unknown &&
+                            sp.SplitUnit.Length > 1)
                     {
                         var ct = keys[sp[0]].ConstantType;
                         bool canparse = IsOnlyType(string.Concat(sp[1..]), _valueVaildRegularExpressions[ct.Value]);
@@ -1158,7 +1228,7 @@ EM:
                             ku.Add(MakeUnit(sp[1], KeyType.Text));
                         }
                     }
-                    else
+                    else if(sp.SplitUnit.Length > 1)
                     {
                         ku.Add(MakeUnit(sp[1], KeyType.Text));
                     }

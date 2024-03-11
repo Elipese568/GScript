@@ -40,8 +40,31 @@ defCFuncEnd
 
 defClassEnd
 
-defDyVar [flag:c:a]
-init (c::a) {a} [number:1]
 callM (c::a) {a} [function:test]
+
+defClass [class:b]
+
+prop [property:int] {number}
+
+ctor {number}
+
+setProp ($SELF$) {b} [property:int] ($ARG$)
+
+ctorEnd
+
+defCFunc [function:out] [Privation:Public]
+getProp ($SELF$) {b} [property:int]
+callM ($CRET$) {number} [function:ToString]
+out ($CRET$)
+defCFuncEnd
+
+defClassEnd
+
+defDyVar [flag:c:b]
+init (c::b) {b} [number:114514]
+callM (c::b) {b} [function:out]
+
+sysTypeStaticCall {::String} [function:Format] [string:value {0} is be formatted.] [number:114514]
+out ($CRET$)
 
 jmp [tag_t:main]

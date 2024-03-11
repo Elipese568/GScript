@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GScriptEditer;
+namespace GScript.Editer;
 
 public static class Menu
 {

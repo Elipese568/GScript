@@ -5,6 +5,7 @@
     <TargetFramework>net7.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,6 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\GScript.Editer.Clipboard\GScript.Editer.Clipboard.vcxproj" />
     <ProjectReference Include="..\GScriptAnalyzer\GScript.Analyzer.csproj" />
     <ProjectReference Include="C:\Users\Administrator.DESKTOP-38EEGUF\source\repos\EUtility\EUtility.Console.BottomMessage\EUtility.ConsoleEx.Message.csproj" />
   </ItemGroup>

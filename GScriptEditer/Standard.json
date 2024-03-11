@@ -308,6 +308,14 @@
     {
       "Type": "Control",
       "RawString": "callFunc"
+    },
+    {
+      "Type": "Control",
+      "RawString": "callM"
+    },
+    {
+      "Type": "Control",
+      "RawString": "sysTypeStaticCall"
     }
   ],
   "KnownType": [
@@ -461,6 +469,18 @@
     {
       "Type": "Operator",
       "RawString": "aloc"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "init"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "setProp"
+    },
+    {
+      "Type": "Operator",
+      "RawString": "getProp"
     }
   ],
   "Tag": [
@@ -477,6 +497,22 @@
     {
       "Type": "Definition",
       "RawString": "defFuncEnd"
+    },
+    {
+      "Type": "Definition",
+      "RawString": "defCFunc"
+    },
+    {
+      "Type": "Definition",
+      "RawString": "defCFuncEnd"
+    },
+    {
+      "Type": "Definition",
+      "RawString": "ctorEnd"
+    },
+    {
+      "Type": "Definition",
+      "RawString": "ctor"
     },
     {
       "Type": "Definition",

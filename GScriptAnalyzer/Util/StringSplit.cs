@@ -9,10 +9,16 @@ namespace GScript.Analyzer.Util
     {
         string[] m_splitunits;
 
+        string m_rawstring;
+        string m_split;
+
         public string[] SplitUnit => m_splitunits;
 
         public StringSplit(string str, char splitchar)
         {
+            m_rawstring = str;
+            m_split = splitchar.ToString();
+
             bool inPars = false;
 
             List<string> units = new List<string>();
@@ -51,6 +57,8 @@ namespace GScript.Analyzer.Util
 
         public StringSplit(string str, string splitchar)
         {
+            m_rawstring = str;
+            m_split = splitchar;
             m_splitunits = str.Split(splitchar);
         }
 
@@ -74,6 +82,7 @@ namespace GScript.Analyzer.Util
     public class StringSplitEx
     {
         List<string> m_splitunits = new();
+        public List<string> SplitUnit => m_splitunits;
         public StringSplitEx(string str, char splitchar, int depth)
         {
             int count = 0;

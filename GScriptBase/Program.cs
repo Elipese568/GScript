@@ -3,6 +3,7 @@
 using EUtility.ValueEx;
 using System.CommandLine;
 using System.Diagnostics;
+using System.Text;
 
 internal class Program
 {
@@ -36,6 +37,25 @@ internal class Program
                                         "(Maybe is an internet file or a System Memory File?)");
                 return;
             }
+
+            //string[] content = File.ReadAllLines(path);
+
+            //StringBuilder sb = new();
+
+            //foreach(var line in content)
+            //{
+            //    if(line.StartsWith("#inc"))
+            //    {
+            //        sb.AppendJoin(Environment.NewLine, File.ReadAllLines(line[4..].Replace(".\\", "std\\") + ".gs"));
+            //        sb.AppendLine();
+            //    }
+            //    else
+            //    {
+            //        sb.AppendLine(line);
+            //    }
+            //}
+
+            //File.WriteAllText(Path.GetTempFileName(), sb.ToString());
 
             _entry = new(path);
             

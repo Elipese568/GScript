@@ -7,7 +7,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace GScriptEditer;
+namespace GScript.Editer;
 
 internal struct ColorSet
 {
@@ -48,7 +48,7 @@ internal class StyleTable
 {
     public string InterpreterPath { get; set; }
     public Dictionary<KeyType, ColorStyle> ColorStyle { get; set; } = new ();
-    public Dictionary<string, ColorStyleEx> CustomConstantColorRule { get; set; }
+    //public Dictionary<string, ColorStyleEx> CustomConstantColorRule { get; set; }
 
     public List<NormalKeyUnit> CritialVariable { get; set; } = new();
     public List<NormalKeyUnit> Control { get; set; } = new();
