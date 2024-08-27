@@ -1,6 +1,9 @@
 ﻿using EUtility.ValueEx;
 using GScript.Analyzer;
 using GScript.Analyzer.Exception;
+using GScript.Analyzer.Executing;
+using GScript.Analyzer.InternalType;
+using GScript.Analyzer.Parser;
 using GScript.Analyzer.Util;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,7 +12,7 @@ using System.Reflection.Metadata;
 using System.Transactions;
 
 namespace GScript.Standard;
-using Arguments = ICollection<GScript.Analyzer.ScriptObject>;
+using Arguments = ICollection<ScriptObject>;
 
 internal class Entry
 {
@@ -40,11 +43,13 @@ internal class Entry
     {
         _script = new();
 
-        Initialize(in _script);
+        InitializeCommands(in _script);
+        InitialzeParsers(in _script);
 
-        _script.Open(path);
+        _script.OpenWithContent(path);
 
         _script.Vars.Add(M_CallRet, new("$RET$"));
+        
         _script.Vars.Add(M_Argument1, new("$ARG$"));
         _script.Vars.Add(M_Argument2, new("$ARG1$"));
         _script.Vars.Add(M_Argument3, new("$ARG2$"));
@@ -63,6 +68,8 @@ internal class Entry
             _valueStack.Add(new());
         }
 
+        Execute:
+
         var result = _script.Execute();
 
         if(!result)
@@ -72,7 +79,17 @@ internal class Entry
             Console.WriteLine(ExceptionOperator.GetErrorData().Message);
             Console.WriteLine("unhandle exception");
         }
-        
+
+        if(!_funcTable.ContainsKey("main"))
+        {
+            ExceptionOperator.SetLastErrorEx(new(0, "", new InvaildScriptSegmentException(), "No entry."));
+            return;
+        }
+
+        _noRun = false;
+        _callStack.Push(_funcTable["main"].Start.Value);
+        _script.CurrentLine = _funcTable["main"].Start.Value;
+        goto Execute;
     }
 
     private Script _script;
@@ -95,17 +112,17 @@ internal class Entry
 
     private Dictionary<string, ClassTemplate> _classTemplateTable = new();
 
-    private bool _noRun = false;
+    private bool _noRun = true;
 
     private string[] _alwaysRun = new string[]
     {
-        "defFunc",
-        "defFuncEnd",
-        "defClass",
-        "defClassEnd",
+        "func",
+        "funcEnd",
+        "class",
+        "classEnd",
         "prop",
-        "defCFunc",
-        "defCFuncEnd",
+        "MFunc",
+        "MFuncEnd",
         "ctor",
         "ctorEnd",
         "tag"
@@ -116,129 +133,158 @@ internal class Entry
         "NoRun"
     };
 
-    private void Initialize(in Script script)
+    private void InitializeCommands(in Script script)
     {
-        bool OutCommand(Command cmd, ref int line)
+        ExecuteResult OutCommand(ExecuteContext context)
         {
-            var arg = cmd.Args;
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            var cmd = context.Command;
+
+            var arg = context.Command.Args;
+
             if (arg.Count == 1)
             {
-                switch (cmd.TypeArgPairs[arg[0]])
+                switch (context.Command.TypeArgPairs[arg[0]])
                 {
                     case GScript.Analyzer.Util.ParenthesisType.Small:
                     case GScript.Analyzer.Util.ParenthesisType.Middle:
                         string s = arg[0].Value.ToString();
                         Console.Write(StringHelper.ToCSString(s));
-                        return true;
+                        break;
                     default:
                         ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_WRONGARG);
                         ExceptionOperator.SetException(new ArgFormatException("Argument parenthesis should small or middle"));
-                        return false;
+                        result.Complated = false;
+                        break;
                 }
 
             }
             else if (arg.Count == 2)
             {
-                if (cmd.TypeArgPairs[arg[0]] == GScript.Analyzer.Util.ParenthesisType.Small)
+                if (context.Command.TypeArgPairs[arg[0]] == GScript.Analyzer.Util.ParenthesisType.Small)
                 {
-                    if (cmd.TypeArgPairs[arg[0]] == GScript.Analyzer.Util.ParenthesisType.Small)
+                    if (context.Command.TypeArgPairs[arg[0]] == GScript.Analyzer.Util.ParenthesisType.Small)
                         Console.WriteLine(arg[0].Value);
-                    return true;
                 }
                 Console.WriteLine(arg[0].Value);
             }
-            return true;
+            result.Complated = true;
+
+            return result;
         }
 
-        bool InputCommand(Command cmd, ref int line)
+        ExecuteResult InputCommand(ExecuteContext context)
         {
-            var arg = cmd.Args;
-            if (cmd.TypeArgPairs[arg[0]] == GScript.Analyzer.Util.ParenthesisType.Small)
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            var cmd = context.Command;
+
+            var arg = context.Command.Args;
+
+            if (context.Command.TypeArgPairs[arg[0]] == GScript.Analyzer.Util.ParenthesisType.Small)
             {
                 //GSScript.CurrentScript.Vars[(arg[0] as GSVar).Name].Value = Console.ReadLine();
                 arg[0].Value = Console.ReadLine();
-                return true;
+                result.Complated = true;
             }
-            ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_WRONGARG);
-            return false;
+            else
+            {
+                ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_WRONGARG);
+            }
+
+            return result;
         }
 
-        bool DefFuncCommand(Command cmd, ref int line)
+        ExecuteResult DefFuncCommand(ExecuteContext context)
         {
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            var cmd = context.Command;
             if (_inFuncBlock)
             {
                 ExceptionOperator.SetLastError(GSBE_INLINEFUNCINVAILD);
-                return false;
             }
 
             if (_callStack.Count > 0)
-                return true;
+                result.Complated = true;
 
             _inFuncBlock = true;
 
-            var name = (cmd.Args[0].Value as Flag);
+            var name = (context.Command.Args[0].Value as string);
 
-            _currentFunc.Item1 = name.FlagName + "::" + name.FlagValue;
-            _currentFunc.Item2 = new(line, line + 1);
-            return true;
+            _currentFunc.Item1 = name;
+            _currentFunc.Item2 = new(context.Line, context.Line);
+            result.Complated = true;
+
+            return result;
         }
 
-        bool DefFuncEndCommand(Command cmd, ref int line)
+        ExecuteResult DefFuncEndCommand(ExecuteContext context)
         {
-            if(_inFuncBlock)
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            var cmd = context.Command;
+
+            if (_inFuncBlock)
             {
                 _inFuncBlock = false;
 
-                _currentFunc.Item2 = new(_currentFunc.Item2.Start, line);
+                _currentFunc.Item2 = new(_currentFunc.Item2.Start, context.Line);
 
                 _funcTable.Add(_currentFunc.Item1, _currentFunc.Item2);
             }
 
             if(_callStack.Count > 0)
             {
-                if(cmd.Args.Count > 0)
-                    Script.CurrentScript.SetVar(M_CallRet, cmd.Args[0].Value);
+                if(context.Command.Args.Count > 0)
+                    Script.CurrentScript.SetVar(M_CallRet, context.Command.Args[0].Value);
                 
-                line = _callStack.Pop();
+                result.Line = _callStack.Pop();
             }
 
-            return true;
+            result.Complated = true;
+            return result;
         }
 
-        bool CallCommand(Command cmd, ref int line)
+        ExecuteResult CallCommand(ExecuteContext context)
         {
-            if (!_funcTable.ContainsKey((cmd.Args[0].Value as Flag).FlagValue))
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+
+            if (!_funcTable.ContainsKey((context.Command.Args[0].Value as string)))
             {
                 ExceptionOperator.SetLastError(GSBE_FUNCISNTEXISTS);
-                return false;
+                result.Complated = false;
+                return result;
             }
 
-            if(cmd.Args.Count > 1)
+            if(context.Command.Args.Count > 1)
             {
-                for(int i = 1; i < cmd.Args.Count; i++)
+                for(int i = 1; i < context.Command.Args.Count; i++)
                 {
-                    Script.CurrentScript.SetVar($"$ARG{i}$", cmd.Args[i].Value);
+                    Script.CurrentScript.SetVar($"$ARG{i}$", context.Command.Args[i].Value);
                 }
             }
 
-            _callStack.Push(line);
-            var name = (cmd.Args[0].Value as Flag);
-            line = _funcTable[name.FlagName + "::" + name.FlagValue].Start.Value;
-            return true;
+            _callStack.Push(context.Line);
+            var name = (context.Command.Args[0].Value as string);
+            result.Line = _funcTable[name].Start.Value;
+
+            result.Complated = true;
+
+            return result;
         }
 
-        bool SysTypeStaticCallCommand(Command cmd, ref int line)
+        ExecuteResult SysTypeStaticCallCommand(ExecuteContext context)
         {
-            ObjectType? Type = (cmd.Args[0] as ObjectType);
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+
+            ObjectType? Type = (context.Command.Args[0] as ObjectType);
             Type t = Type.Value as Type;
-            var method = t.GetMethod(cmd.Args[1].Value as string, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static, cmd.Args.Count > 2 ? cmd.Args.ToArray()[2..].Select(x => DeBox(x).GetType()).ToArray() : Array.Empty<Type>());
+            var method = t.GetMethod(context.Command.Args[1].Value as string, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static, context.Command.Args.Count > 2 ? context.Command.Args.ToArray()[2..].Select(x => DeBox(x).GetType()).ToArray() : Array.Empty<Type>());
 
             List<object> param = new();
 
             int i = 0;
             foreach (var pi in method.GetParameters())
             {
-                param.Add(Convert.ChangeType(cmd.Args[2 + i].Value, pi.ParameterType));
+                param.Add(Convert.ChangeType(context.Command.Args[2 + i].Value, pi.ParameterType));
                 i++;
             }
 
@@ -248,55 +294,71 @@ internal class Entry
             }
             else
             {
-                Script.CurrentScript.SetVar(M_CommandResult, method.Invoke(cmd.Args[0].Value, param.ToArray()));
+                Script.CurrentScript.SetVar(M_CommandResult, method.Invoke(context.Command.Args[0].Value, param.ToArray()));
             }
 
-            return true;
+            result.Complated = true;
+
+            return result;
         }
 
-        bool AssignCommand(Command cmd, ref int line)
+        ExecuteResult AssignCommand(ExecuteContext context)
         {
-            if (cmd.Args[0] as Variable != null && (cmd.Args[0] as Variable).Name == M_ValueStackTop)
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            if (context.Command.Args[0] as Variable != null && (context.Command.Args[0] as Variable).Name == M_ValueStackTop)
             {
                 ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR); 
-                return false;
+                result.Complated = false;
             }
-            cmd.Args[0].Value = cmd.Args[1].Value;
-            return true;
+            context.Command.Args[0].Value = context.Command.Args[1].Value;
+
+            return result;
         }
 
-        bool DefDyVarCommand(Command cmd, ref int line)
+        ExecuteResult VarCommand(ExecuteContext context)
         {
-            Flag? name = (cmd.Args[0] as Flag);
-            if(Script.CurrentScript.Vars.ContainsKey(name.FlagName + "::" + name.FlagValue))
+            Variable variable = context.Command.Args[0] as Variable;
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            if (Script.CurrentScript.Vars.ContainsKey(variable.Name))
             {
                 ExceptionOperator.SetLastError(GSBE_VARIABLEISEXISTS);
-                return false;
+                result.Complated = false;
+                return result;
             }
-            Script.CurrentScript.AddVar(name.FlagName + "::" + name.FlagValue);
-            if(cmd.Args.Count == 2)
+            Script.CurrentScript.AddVar(variable.Name);
+            if(context.Command.Args.Count == 2)
             {
-                Script.CurrentScript.SetVar(name.FlagValue, cmd.Args[1].Value);
+                Script.CurrentScript.SetVar(variable.Name, context.Command.Args[1].Value);
             }
-            return true;
+            return result;
         }
 
-        bool RemovVarCommand(Command cmd, ref int line)
+        ExecuteResult DeVarCommand(ExecuteContext context)
         {
-            var i = (cmd.Args[0] as Flag);
-            if (!Script.CurrentScript.Vars.ContainsKey(i.FlagName + "::" + i.FlagValue))
+            Variable variable = context.Command.Args[0] as Variable;
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            if (!Script.CurrentScript.Vars.ContainsKey(variable.Name))
             {
                 ExceptionOperator.SetLastError(GSBE_VARIABLEISNTEXISTS);
-                return false;
+                result.Complated = false;
+                return result;
             }
-            Script.CurrentScript.RemoveVar(i.FlagName + "::" + i.FlagValue);
-            return true;
+            Script.CurrentScript.RemoveVar(variable.Name);
+            return result;
         }
 
         #region Operator
-        bool AddCommand(Command cmd, ref int line)
+        ExecuteResult AddCommand(ExecuteContext context)
         {
-            int lineclone = line;
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
             Dictionary<(Type, Type), Func<object, object, bool>> AddProc = new()
             {
                 [(TypeField.String, TypeField.Char)] = AddString,
@@ -333,7 +395,7 @@ internal class Entry
                 }
                 catch(OverflowException e)
                 {
-                    ErrorData ed = new(lineclone, cmd.ToCommandString(), e, "Add operation overflow (number + number).");
+                    ErrorData ed = new(context.Line, context.Command.ToCommandString(), e, "Add operation overflow (number + number).");
                     ExceptionOperator.SetLastErrorEx(ed);
                     return false;
                 }
@@ -350,7 +412,7 @@ internal class Entry
                 }
                 catch (OverflowException e)
                 {
-                    ErrorData ed = new(lineclone, cmd.ToCommandString(), e, "Add operation overflow (number + number).");
+                    ErrorData ed = new(context.Line, context.Command.ToCommandString(), e, "Add operation overflow (number + number).");
                     ExceptionOperator.SetLastErrorEx(ed);
                     return false;
                 }
@@ -367,14 +429,14 @@ internal class Entry
                 }
                 catch (OverflowException e)
                 {
-                    ErrorData ed = new(lineclone, cmd.ToCommandString(), e, "Add operation overflow (number + number).");
+                    ErrorData ed = new(context.Line, context.Command.ToCommandString(), e, "Add operation overflow (number + number).");
                     ExceptionOperator.SetLastErrorEx(ed);
                     return false;
                 }
             }
 
-            var a = cmd.Args[0];
-            var b = cmd.Args[1];
+            var a = context.Command.Args[0];
+            var b = context.Command.Args[1];
 
             object avt = (~a.ValueType.Clone().As<Union<string, System.Type>>());
             object bvt = (~b.ValueType.Clone().As<Union<string, System.Type>>());
@@ -389,10 +451,12 @@ internal class Entry
                 {
                     case M_ValueStackPointer:
                         _script.SetVar(M_ValueStackPointer, (long)v.Value + (long)b.Value);
-                        return true;
+                        result.Complated = true;
+                        return result;
                     case M_ValueStackTop:
                         ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR);
-                        return false;
+                        result.Complated = false;
+                        return result;
                     default:
                         break;
                 }
@@ -400,22 +464,25 @@ internal class Entry
 
             if (AddProc.TryGetValue((aType, bType), out Func<object, object, bool> func))
             {
-                return func(a.Value, b.Value);
+                result.Complated = func(a.Value, b.Value);
             }
             else
             {
-                ErrorData ed = new(line, cmd.ToCommandString(), ExceptionOperator.GErrorCode.GSE_WRONGARG, "invaild arg.");
+                ErrorData ed = new(context.Line, context.Command.ToCommandString(), ExceptionOperator.GErrorCode.GSE_WRONGARG, "invaild arg.");
                 ExceptionOperator.SetLastErrorEx(ed);
             }
 
             //Script.CurrentScript.SetVar(M_CommandResult, (long)a.Value + (long)b.Value);
-            return true;
+            return result;
         }
 
-        bool SubCommand(Command cmd, ref int line)
+        ExecuteResult SubCommand(ExecuteContext context)
         {
-            var a = cmd.Args[0];
-            var b = cmd.Args[1];
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            var a = context.Command.Args[0];
+            var b = context.Command.Args[1];
 
             if (a as Variable != null)
             {
@@ -424,10 +491,11 @@ internal class Entry
                 {
                     case M_ValueStackPointer:
                         _script.SetVar(M_ValueStackPointer, (long)v.Value - (long)b.Value);
-                        return true;
+                        return result;
                     case M_ValueStackTop:
                         ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR);
-                        return false;
+                        result.Complated = false;
+                        return result;
                     default:
                         break;
                 }
@@ -437,17 +505,21 @@ internal class Entry
             {
                 ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_WRONGARG);
                 ExceptionOperator.SetException(new ArgumentException("Different type execute 'Add' operation is invaild."));
-                return false;
+                result.Complated = false;
+                return result;
             }
 
             Script.CurrentScript.SetVar(M_CommandResult, (long)a.Value - (long)b.Value);
-            return true;
+            return result;
         }
 
-        bool MulCommand(Command cmd, ref int line)
+        ExecuteResult MulCommand(ExecuteContext context)
         {
-            var a = cmd.Args[0];
-            var b = cmd.Args[1];
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            var a = context.Command.Args[0];
+            var b = context.Command.Args[1];
 
             if (a as Variable != null)
             {
@@ -456,10 +528,11 @@ internal class Entry
                 {
                     case M_ValueStackPointer:
                         _script.SetVar(M_ValueStackPointer, (long)v.Value * (long)b.Value);
-                        return true;
+                        return result;
                     case M_ValueStackTop:
                         ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR);
-                        return false;
+                        result.Complated = false;
+                        return result;
                     default:
                         break;
                 }
@@ -469,17 +542,21 @@ internal class Entry
             {
                 ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_WRONGARG);
                 ExceptionOperator.SetException(new ArgumentException("Different type execute 'Add' operation is invaild."));
-                return false;
+                result.Complated = false;
+                return result;
             }
 
             Script.CurrentScript.SetVar(M_CommandResult, (long)a.Value * (long)b.Value);
-            return true;
+            return result;
         }
 
-        bool DivCommand(Command cmd, ref int line)
+        ExecuteResult DivCommand(ExecuteContext context)
         {
-            var a = cmd.Args[0];
-            var b = cmd.Args[1];
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            var a = context.Command.Args[0];
+            var b = context.Command.Args[1];
 
             if (a as Variable != null)
             {
@@ -488,10 +565,11 @@ internal class Entry
                 {
                     case M_ValueStackPointer:
                         _script.SetVar(M_ValueStackPointer, (long)v.Value / (long)b.Value);
-                        return true;
+                        return result;
                     case M_ValueStackTop:
                         ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR);
-                        return false;
+                        result.Complated = false;
+                        return result;
                     default:
                         break;
                 }
@@ -501,17 +579,21 @@ internal class Entry
             {
                 ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_WRONGARG);
                 ExceptionOperator.SetException(new ArgumentException("Different type execute 'Add' operation is invaild."));
-                return false;
+                result.Complated = false;
+                return result;
             }
 
             Script.CurrentScript.SetVar(M_CommandResult, (long)a.Value / (long)b.Value);
-            return true;
+            return result;
         }
 
-        bool AddFCommand(Command cmd, ref int line)
+        ExecuteResult AddFCommand(ExecuteContext context)
         {
-            var a = cmd.Args[0];
-            var b = cmd.Args[1];
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            var a = context.Command.Args[0];
+            var b = context.Command.Args[1];
 
             if (a as Variable != null)
             {
@@ -520,10 +602,12 @@ internal class Entry
                 {
                     case M_ValueStackPointer:
                         ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR);
-                        return false;
+                        result.Complated = false;
+                        return result;
                     case M_ValueStackTop:
                         ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR);
-                        return false;
+                        result.Complated = false;
+                        return result;
                     default:
                         break;
                 }
@@ -533,17 +617,21 @@ internal class Entry
             {
                 ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_WRONGARG);
                 ExceptionOperator.SetException(new ArgumentException("Different type execute 'Add' operation is invaild."));
-                return false;
+                result.Complated = false;
+                return result;
             }
 
             Script.CurrentScript.SetVar(M_CommandResult, (double)a.Value + (double)b.Value);
-            return true;
+            return result;
         }
 
-        bool SubFCommand(Command cmd, ref int line)
+        ExecuteResult SubFCommand(ExecuteContext context)
         {
-            var a = cmd.Args[0];
-            var b = cmd.Args[1];
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            var a = context.Command.Args[0];
+            var b = context.Command.Args[1];
 
             if (a as Variable != null)
             {
@@ -552,10 +640,12 @@ internal class Entry
                 {
                     case M_ValueStackPointer:
                         ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR);
-                        return false;
+                        result.Complated = false;
+                        return result;
                     case M_ValueStackTop:
                         ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR);
-                        return false;
+                        result.Complated = false;
+                        return result;
                     default:
                         break;
                 }
@@ -565,17 +655,21 @@ internal class Entry
             {
                 ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_WRONGARG);
                 ExceptionOperator.SetException(new ArgumentException("Different type execute 'Add' operation is invaild."));
-                return false;
+                result.Complated = false;
+                return result;
             }
 
             Script.CurrentScript.SetVar(M_CommandResult, (double)a.Value - (double)b.Value);
-            return true;
+            return result;
         }
 
-        bool MulFCommand(Command cmd, ref int line)
+        ExecuteResult MulFCommand(ExecuteContext context)
         {
-            var a = cmd.Args[0];
-            var b = cmd.Args[1];
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            var a = context.Command.Args[0];
+            var b = context.Command.Args[1];
 
             if (a as Variable != null)
             {
@@ -584,10 +678,12 @@ internal class Entry
                 {
                     case M_ValueStackPointer:
                         ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR);
-                        return false; ;
+                        result.Complated = false;
+                        return result;;
                     case M_ValueStackTop:
                         ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR);
-                        return false;
+                        result.Complated = false;
+                        return result;
                     default:
                         break;
                 }
@@ -597,17 +693,21 @@ internal class Entry
             {
                 ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_WRONGARG);
                 ExceptionOperator.SetException(new ArgumentException("Different type execute 'Add' operation is invaild."));
-                return false;
+                result.Complated = false;
+                return result;
             }
 
             Script.CurrentScript.SetVar(M_CommandResult, (double)a.Value * (double)b.Value);
-            return true;
+            return result;
         }
 
-        bool DivFCommand(Command cmd, ref int line)
+        ExecuteResult DivFCommand(ExecuteContext context)
         {
-            var a = cmd.Args[0];
-            var b = cmd.Args[1];
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            var a = context.Command.Args[0];
+            var b = context.Command.Args[1];
 
             if (a as Variable != null)
             {
@@ -616,10 +716,12 @@ internal class Entry
                 {
                     case M_ValueStackPointer:
                         ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR);
-                        return false;
+                        result.Complated = false;
+                        return result;
                     case M_ValueStackTop:
                         ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR);
-                        return false;
+                        result.Complated = false;
+                        return result;
                     default:
                         break;
                 }
@@ -629,17 +731,21 @@ internal class Entry
             {
                 ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_WRONGARG);
                 ExceptionOperator.SetException(new ArgumentException("Different type execute 'Add' operation is invaild."));
-                return false;
+                result.Complated = false;
+                return result;
             }
 
             Script.CurrentScript.SetVar(M_CommandResult, (double)a.Value / (double)b.Value);
-            return true;
+            return result;
         }
 
-        bool AddLCommand(Command cmd, ref int line)
+        ExecuteResult AddLCommand(ExecuteContext context)
         {
-            var a = cmd.Args[0];
-            var b = cmd.Args[1];
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            var a = context.Command.Args[0];
+            var b = context.Command.Args[1];
 
             if (a as Variable != null)
             {
@@ -648,10 +754,11 @@ internal class Entry
                 {
                     case M_ValueStackPointer:
                         _script.SetVar(M_ValueStackPointer, (Int128)v.Value + (Int128)b.Value);
-                        return true;
+                        return result;
                     case M_ValueStackTop:
                         ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR);
-                        return false;
+                        result.Complated = false;
+                        return result;
                     default:
                         break;
                 }
@@ -661,17 +768,21 @@ internal class Entry
             {
                 ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_WRONGARG);
                 ExceptionOperator.SetException(new ArgumentException("Different type execute 'Add' operation is invaild."));
-                return false;
+                result.Complated = false;
+                return result;
             }
 
             Script.CurrentScript.SetVar(M_CommandResult, (Int128)a.Value + (Int128)b.Value);
-            return true;
+            return result;
         }
 
-        bool SubLCommand(Command cmd, ref int line)
+        ExecuteResult SubLCommand(ExecuteContext context)
         {
-            var a = cmd.Args[0];
-            var b = cmd.Args[1];
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            var a = context.Command.Args[0];
+            var b = context.Command.Args[1];
 
             if (a as Variable != null)
             {
@@ -680,10 +791,11 @@ internal class Entry
                 {
                     case M_ValueStackPointer:
                         _script.SetVar(M_ValueStackPointer, (Int128)v.Value - (Int128)b.Value);
-                        return true;
+                        return result;
                     case M_ValueStackTop:
                         ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR);
-                        return false;
+                        result.Complated = false;
+                        return result;
                     default:
                         break;
                 }
@@ -693,17 +805,21 @@ internal class Entry
             {
                 ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_WRONGARG);
                 ExceptionOperator.SetException(new ArgumentException("Different type execute 'Add' operation is invaild."));
-                return false;
+                result.Complated = false;
+                return result;
             }
 
             Script.CurrentScript.SetVar(M_CommandResult, (Int128)a.Value - (Int128)b.Value);
-            return true;
+            return result;
         }
 
-        bool MulLCommand(Command cmd, ref int line)
+        ExecuteResult MulLCommand(ExecuteContext context)
         {
-            var a = cmd.Args[0];
-            var b = cmd.Args[1];
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            var a = context.Command.Args[0];
+            var b = context.Command.Args[1];
 
             if (a as Variable != null)
             {
@@ -712,10 +828,11 @@ internal class Entry
                 {
                     case M_ValueStackPointer:
                         _script.SetVar(M_ValueStackPointer, (Int128)v.Value * (Int128)b.Value);
-                        return true;
+                        return result;
                     case M_ValueStackTop:
                         ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR);
-                        return false;
+                        result.Complated = false;
+                        return result;
                     default:
                         break;
                 }
@@ -725,17 +842,21 @@ internal class Entry
             {
                 ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_WRONGARG);
                 ExceptionOperator.SetException(new ArgumentException("Different type execute 'Add' operation is invaild."));
-                return false;
+                result.Complated = false;
+                return result;
             }
 
             Script.CurrentScript.SetVar(M_CommandResult, (Int128)a.Value * (Int128)b.Value);
-            return true;
+            return result;
         }
 
-        bool DivLCommand(Command cmd, ref int line)
+        ExecuteResult DivLCommand(ExecuteContext context)
         {
-            var a = cmd.Args[0];
-            var b = cmd.Args[1];
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            var a = context.Command.Args[0];
+            var b = context.Command.Args[1];
 
             if (a as Variable != null)
             {
@@ -744,10 +865,11 @@ internal class Entry
                 {
                     case M_ValueStackPointer:
                         _script.SetVar(M_ValueStackPointer, (Int128)v.Value / (Int128)b.Value);
-                        return true;
+                        return result;
                     case M_ValueStackTop:
                         ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR);
-                        return false;
+                        result.Complated = false;
+                        return result;
                     default:
                         break;
                 }
@@ -757,17 +879,21 @@ internal class Entry
             {
                 ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_WRONGARG);
                 ExceptionOperator.SetException(new ArgumentException("Different type execute 'Add' operation is invaild."));
-                return false;
+                result.Complated = false;
+                return result;
             }
 
             Script.CurrentScript.SetVar(M_CommandResult, (Int128)a.Value / (Int128)b.Value);
-            return true;
+            return result;
         }
 
-        bool AddBLCommand(Command cmd, ref int line)
+        ExecuteResult AddBLCommand(ExecuteContext context)
         {
-            var a = cmd.Args[0];
-            var b = cmd.Args[1];
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            var a = context.Command.Args[0];
+            var b = context.Command.Args[1];
 
             if (a as Variable != null)
             {
@@ -776,10 +902,11 @@ internal class Entry
                 {
                     case M_ValueStackPointer:
                         _script.SetVar(M_ValueStackPointer, (BigInteger)v.Value + (BigInteger)b.Value);
-                        return true;
+                        return result;
                     case M_ValueStackTop:
                         ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR);
-                        return false;
+                        result.Complated = false;
+                        return result;
                     default:
                         break;
                 }
@@ -789,17 +916,21 @@ internal class Entry
             {
                 ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_WRONGARG);
                 ExceptionOperator.SetException(new ArgumentException("Different type execute 'Add' operation is invaild."));
-                return false;
+                result.Complated = false;
+                return result;
             }
 
             Script.CurrentScript.SetVar(M_CommandResult, (BigInteger)a.Value + (BigInteger)b.Value);
-            return true;
+            return result;
         }
 
-        bool SubBLCommand(Command cmd, ref int line)
+        ExecuteResult SubBLCommand(ExecuteContext context)
         {
-            var a = cmd.Args[0];
-            var b = cmd.Args[1];
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            var a = context.Command.Args[0];
+            var b = context.Command.Args[1];
 
             if (a as Variable != null)
             {
@@ -808,10 +939,11 @@ internal class Entry
                 {
                     case M_ValueStackPointer:
                         _script.SetVar(M_ValueStackPointer, (BigInteger)v.Value - (BigInteger)b.Value);
-                        return true;
+                        return result;
                     case M_ValueStackTop:
                         ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR);
-                        return false;
+                        result.Complated = false;
+                        return result;
                     default:
                         break;
                 }
@@ -821,17 +953,21 @@ internal class Entry
             {
                 ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_WRONGARG);
                 ExceptionOperator.SetException(new ArgumentException("Different type execute 'Add' operation is invaild."));
-                return false;
+                result.Complated = false;
+                return result;
             }
 
             Script.CurrentScript.SetVar(M_CommandResult, (BigInteger)a.Value - (BigInteger)b.Value);
-            return true;
+            return result;
         }
 
-        bool MulBLCommand(Command cmd, ref int line)
+        ExecuteResult MulBLCommand(ExecuteContext context)
         {
-            var a = cmd.Args[0];
-            var b = cmd.Args[1];
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            var a = context.Command.Args[0];
+            var b = context.Command.Args[1];
 
             if (a as Variable != null)
             {
@@ -840,10 +976,11 @@ internal class Entry
                 {
                     case M_ValueStackPointer:
                         _script.SetVar(M_ValueStackPointer, (BigInteger)v.Value * (BigInteger)b.Value);
-                        return true;
+                        return result;
                     case M_ValueStackTop:
                         ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR);
-                        return false;
+                        result.Complated = false;
+                        return result;
                     default:
                         break;
                 }
@@ -853,17 +990,21 @@ internal class Entry
             {
                 ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_WRONGARG);
                 ExceptionOperator.SetException(new ArgumentException("Different type execute 'Add' operation is invaild."));
-                return false;
+                result.Complated = false;
+                return result;
             }
 
             Script.CurrentScript.SetVar(M_CommandResult, (BigInteger)a.Value * (BigInteger)b.Value);
-            return true;
+            return result;
         }
 
-        bool DivBLCommand(Command cmd, ref int line)
+        ExecuteResult DivBLCommand(ExecuteContext context)
         {
-            var a = cmd.Args[0];
-            var b = cmd.Args[1];
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            var a = context.Command.Args[0];
+            var b = context.Command.Args[1];
 
             if (a as Variable != null)
             {
@@ -872,10 +1013,11 @@ internal class Entry
                 {
                     case M_ValueStackPointer:
                         _script.SetVar(M_ValueStackPointer, (BigInteger)v.Value / (BigInteger)b.Value);
-                        return true;
+                        return result;
                     case M_ValueStackTop:
                         ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR);
-                        return false;
+                        result.Complated = false;
+                        return result;
                     default:
                         break;
                 }
@@ -885,11 +1027,12 @@ internal class Entry
             {
                 ExceptionOperator.SetLastError(ExceptionOperator.GErrorCode.GSE_WRONGARG);
                 ExceptionOperator.SetException(new ArgumentException("Different type execute 'Add' operation is invaild."));
-                return false;
+                result.Complated = false;
+                return result;
             }
 
             Script.CurrentScript.SetVar(M_CommandResult, (BigInteger)a.Value / (BigInteger)b.Value);
-            return true;
+            return result;
         }
 
         #endregion
@@ -904,14 +1047,18 @@ internal class Entry
             return 0;
         }
 
-        bool PushCommand(Command cmd, ref int line)
+        ExecuteResult PushCommand(ExecuteContext context)
         {
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
             int Pointer = (int)_script.Vars[M_ValueStackPointer].Value;
             int length = GetValueStackVaildValueLength(_valueStack);
             if (Pointer > length - 1 || 0 > Pointer)
             {
                 ExceptionOperator.SetLastError(GSBE_STACKPOINTEROUTOFRANGE);
-                return false;
+                result.Complated = false;
+                return result;
             }
             else if(Pointer < length -1)
             {
@@ -921,19 +1068,23 @@ internal class Entry
                 }
             }
 
-            _valueStack[Pointer] = cmd.Args[0].Value;
-            return true;
+            _valueStack[Pointer] = context.Command.Args[0].Value;
+            return result;
         }
 
-        bool PullCommand(Command cmd, ref int line)
+        ExecuteResult PullCommand(ExecuteContext context)
         {
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
             int Pointer = (int)_script.Vars[M_ValueStackPointer].Value;
             int length = GetValueStackVaildValueLength(_valueStack);
             object pv = new();
             if (Pointer < length - 1 || Pointer < 0)
             {
                 ExceptionOperator.SetLastError(GSBE_STACKPOINTEROUTOFRANGE);
-                return false;
+                result.Complated = false;
+                return result;
             }
             pv = _valueStack[Pointer];
             if (length - 1 > Pointer)
@@ -954,27 +1105,34 @@ internal class Entry
             }
             
             _script.SetVar(M_CommandResult, pv);
-            return true;
+            return result;
         }
 
-        bool PeekCommand(Command cmd, ref int line)
+        ExecuteResult PeekCommand(ExecuteContext context)
         {
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
             int Pointer = (int)_script.Vars[M_ValueStackPointer].Value;
             int length = GetValueStackVaildValueLength(_valueStack);
             if (Pointer < length - 1 || Pointer < 0)
             {
                 ExceptionOperator.SetLastError(GSBE_STACKPOINTEROUTOFRANGE);
-                return false;
+                result.Complated = false;
+                return result;
             }
             
             _script.SetVar(M_CommandResult, _script.Vars[M_ValueStackPointer].Value);
-            return true;
+            return result;
         }
 
-        bool TagCommand(Command cmd, ref int line)
+        ExecuteResult TagCommand(ExecuteContext context)
         {
-            _tags.Add(cmd.Args[0] as Tag, line);
-            return true;
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            _tags.Add(context.Command.Args[0] as Tag, context.Line);
+            return result;
         }
 
         bool JmpInternal(object arg, string commandstring, ref int line)
@@ -996,49 +1154,85 @@ internal class Entry
             return true;
         }
 
-        bool JmpCommand(Command cmd, ref int line)
+        ExecuteResult JmpCommand(ExecuteContext context)
         {
-            return JmpInternal(cmd.Args[0], cmd.ToCommandString(), ref line);
+            int line = context.Line;
+
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = JmpInternal(context.Command.Args[0], context.Command.ToCommandString(), ref line);
+            result.Line = line;
+
+            return result;
         }
 
-        bool JmpcCommand(Command cmd, ref int line)
+        ExecuteResult JmpcCommand(ExecuteContext context)
         {
-            switch(cmd.Args.Count)
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            int line = result.Line;
+
+            switch (context.Command.Args.Count)
             {
                 case 2:
-                    if (cmd.Args[0].Value is bool c && c)
+                    if (context.Command.Args[0].Value is bool c && c)
                     {
-                        return JmpInternal(cmd.Args[1], cmd.ToCommandString(), ref line);
+                        bool complate = JmpInternal(context.Command.Args[1], context.Command.ToCommandString(), ref line);
+                        if(complate)
+                        {
+                            result.Line = line;
+                        }
+                        else
+                        {
+                            result.Complated = false;
+                            return result;
+                        }
                     }
-                    ErrorData ed = new(line, cmd.ToCommandString(), new ArgumentException("Arg type is wrong"), "Arg type is wrong");
+                    ErrorData ed = new(context.Line, context.Command.ToCommandString(), new ArgumentException("Arg type is wrong"), "Arg type is wrong");
                     ExceptionOperator.SetLastErrorEx(ed);
                     break;
                 case 3:
-                    if (cmd.Args[2].Value is bool iselse)
+                    if (context.Command.Args[2].Value is bool iselse)
                     {
-                        if (cmd.Args[0].Value is bool c2 && c2 == !iselse)
+                        if (context.Command.Args[0].Value is bool c2 && c2 == !iselse)
                         {
-                            return JmpInternal(cmd.Args[1], cmd.ToCommandString(), ref line);
+                            bool complate = JmpInternal(context.Command.Args[1], context.Command.ToCommandString(), ref line);
+                            if (complate)
+                            {
+                                result.Line = line;
+                            }
+                            else
+                            {
+                                result.Complated = false;
+                                return result;
+                            }
                         }
-                        return true;
+                        return result;
                     }
-                    ErrorData ed2 = new(line, cmd.ToCommandString(), new ArgumentException("Arg type is wrong"), "Arg type is wrong");
+                    ErrorData ed2 = new(context.Line, context.Command.ToCommandString(), new ArgumentException("Arg type is wrong"), "Arg type is wrong");
                     ExceptionOperator.SetLastErrorEx(ed2);
                     break;
             }
-            return false;
+            result.Complated = false;
+            return result;
         }
 
-        bool NoRunTrueCommand(Command cmd, ref int line)
+        ExecuteResult NoRunTrueCommand(ExecuteContext context)
         {
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
             _noRun = true;
-            return true;
+            return result;
         }
 
-        bool NoRunFalseCommand(Command cmd, ref int line)
+        ExecuteResult NoRunFalseCommand(ExecuteContext context)
         {
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
             _noRun = false;
-            return true;
+            return result;
         }
 
         bool CompareInternal(object left, object right, string symbol)
@@ -1065,15 +1259,21 @@ internal class Entry
             return false;
         }
 
-        bool CompCommand(Command cmd, ref int line)
+        ExecuteResult CompCommand(ExecuteContext context)
         {
-            Script.CurrentScript.SetVar(M_CommandResult, CompareInternal(cmd.Args[1].Value, cmd.Args[2].Value, (cmd.Args[0] as Flag).FlagValue));
-            return true;
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            Script.CurrentScript.SetVar(M_CommandResult, CompareInternal(context.Command.Args[1].Value, context.Command.Args[2].Value, (context.Command.Args[0] as Flag).FlagValue));
+            return result;
         }
 
-        bool ExitCommand(Command cmd, ref int line)
+        ExecuteResult ExitCommand(ExecuteContext context)
         {
-            if(cmd.Args.Count == 1 && cmd.Args[0].Value is int exitcode)
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            if (context.Command.Args.Count == 1 && context.Command.Args[0].Value is int exitcode)
             {
                 Environment.Exit(exitcode);
             }
@@ -1081,31 +1281,40 @@ internal class Entry
             {
                 Environment.Exit(0);
             }
-            return true;
+            return result;
         }
 
-        bool DefClassCommand(Command cmd, ref int line)
+        ExecuteResult DefClassCommand(ExecuteContext context)
         {
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
             if (_inClassBlock || _inFuncBlock)
             {
-                ErrorData ed = new(line, cmd.ToCommandString(), new InvaildScriptSegmentException("Class in class."), "Class in class.");
+                ErrorData ed = new(context.Line, context.Command.ToCommandString(), new InvaildScriptSegmentException("Class in class."), "Class in class.");
                 ExceptionOperator.SetLastErrorEx(ed);
-                return false;
+                result.Complated = false;
+                return result;
             }
 
             _inClassBlock = true;
-            ClassTemplate ct = new(cmd.Args[0].Value as string, line);
+            ClassTemplate ct = new((string)(context.Command.Args[0].Value as Unknown), context.Line);
             _currentClass = ct;
-            return true;
+            return result;
         }
 
-        bool PropCommand(Command cmd, ref int line)
+        ExecuteResult PropCommand(ExecuteContext context)
         {
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
             if (!_inClassBlock || _inFuncBlock)
-                return false;
-            ClassProperty cp = new(cmd.Args[0].Value as string, (cmd.Args[1] as ObjectType).Value as Type);
+            {
+                result.Complated = false;
+                return result;
+            }
+            ClassProperty cp = new(context.Command.Args[0].Value as string, (context.Command.Args[1] as ObjectType).Value as Type);
             _currentClass.RegisterProp(cp.Name, cp);
-            return true;
+            return result;
         }
 
         string GeneratorFunctionSignature(Arguments args, bool inDef = true)
@@ -1127,168 +1336,207 @@ internal class Entry
             return string.Join('@', ArgTypes);
         }
 
-        bool CtorCommand(Command cmd, ref int line)
+        ExecuteResult CtorCommand(ExecuteContext context)
         {
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
             if (!_inClassBlock || _inFuncBlock)
             {
-                ErrorData ed = new(line, cmd.ToCommandString(), new InvaildScriptSegmentException("Ctor. without class."), "Ctor. without class.");
+                ErrorData ed = new(context.Line, context.Command.ToCommandString(), new InvaildScriptSegmentException("Ctor. without class."), "Ctor. without class.");
                 ExceptionOperator.SetLastErrorEx(ed);
-                return false;
+                result.Complated = false;
+                return result;
             }
 
-            ClassFunction ctorfunc = new($".{_currentClass.Name}@{(cmd.Args.Count > 0 ? GeneratorFunctionSignature(cmd.Args.ToArray()) : "")}.ctor", Privation.Public, line);
+            ClassFunction ctorfunc = new($".{_currentClass.Name}@{(context.Command.Args.Count > 0 ? GeneratorFunctionSignature(context.Command.Args.ToArray()) : "")}.ctor", Privation.Public, context.Line);
             _inFuncBlock = true;
 
             _currentClass.RegisterFunc(ctorfunc.Name, ctorfunc);
 
-            return true;
+            return result;
         }
 
-        bool CtorEndCommand(Command cmd, ref int line)
+        ExecuteResult CtorEndCommand(ExecuteContext context)
         {
-            if(_callStack.Count > 0)
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            if (_callStack.Count > 0)
             {
-                if(cmd.Args.Count > 0)
+                if(context.Command.Args.Count > 0)
                 {
-                    Script.CurrentScript.SetVar(M_CallRet, cmd.Args[0]);
+                    Script.CurrentScript.SetVar(M_CallRet, context.Command.Args[0]);
                 }
-                line = _callStack.Pop();
-                return true;
+                result.Line = _callStack.Pop();
+                return result;
             }
-            if(_inFuncBlock && _inClassBlock)
-                return !(_inFuncBlock = false);
+            if (_inFuncBlock && _inClassBlock)
+            {
+                _inFuncBlock = false;
+                return result;
+            }
             else
             {
-                ErrorData ed = new(line, cmd.ToCommandString(), new InvaildScriptSegmentException("Ctor. end without class."), "Ctor. end without class.");
+                ErrorData ed = new(context.Line, context.Command.ToCommandString(), new InvaildScriptSegmentException("Ctor. end without class."), "Ctor. end without class.");
                 ExceptionOperator.SetLastErrorEx(ed);
-                return false;
+                result.Complated = false;
+                return result;
             }
         }
 
-        bool DefCFuncCommand(Command cmd, ref int line)
+
+        ExecuteResult DefCFuncCommand(ExecuteContext context)
         {
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
             if (!_inClassBlock || _inFuncBlock)
             {
-                ErrorData ed = new(line, cmd.ToCommandString(), new InvaildScriptSegmentException("Member function without class."), "Member function without class.");
+                ErrorData ed = new(context.Line, context.Command.ToCommandString(), new InvaildScriptSegmentException("Member function without class."), "Member function without class.");
                 ExceptionOperator.SetLastErrorEx(ed);
-                return false;
+                result.Complated = false;
+                return result;
             }
 
             if (_callStack.Count > 0)
-                return true;
+                return result;
 
-            ClassFunction func = new($".{_currentClass.Name}@{(cmd.Args.Count > 2 ? GeneratorFunctionSignature(cmd.Args.ToArray()[2..]) : "")}.{cmd.Args[0].Value as string}", (Privation)Enum.Parse(typeof(Privation), cmd.Args[1].Value as string), line);
+            ClassFunction func = new($".{_currentClass.Name}@{(context.Command.Args.Count > 2 ? GeneratorFunctionSignature(context.Command.Args.ToArray()[2..]) : "")}.{context.Command.Args[0].Value}", (Privation)Enum.Parse(typeof(Privation), context.Command.Args[1].Value as string), context.Line);
 
             _currentClass.RegisterFunc(func.Name, func);
 
             _inFuncBlock = true;
 
-            return true;
+            return result;
         }
 
-        bool DefCFuncEndCommand(Command cmd, ref int line)
+        ExecuteResult DefCFuncEndCommand(ExecuteContext context)
         {
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
             if (_callStack.Count > 0)
             {
-                if (cmd.Args.Count > 0)
+                if (context.Command.Args.Count > 0)
                 {
-                    Script.CurrentScript.SetVar(M_CallRet, cmd.Args[0]);
+                    Script.CurrentScript.SetVar(M_CallRet, context.Command.Args[0]);
                 }
-                line = _callStack.Pop();
-                return true;
+                result.Line = _callStack.Pop();
+                return result;
             }
 
             if (_inFuncBlock && _inClassBlock)
-                return !(_inFuncBlock = false);
+            {
+                _inFuncBlock = false;
+                return result;
+            }
 
-            ErrorData ed = new(line, cmd.ToCommandString(), new InvaildScriptSegmentException("Member function without class."), "Member function without class.");
+            ErrorData ed = new(context.Line, context.Command.ToCommandString(), new InvaildScriptSegmentException("Member function without class."), "Member function without class.");
             ExceptionOperator.SetLastErrorEx(ed);
-            return false;
+            result.Complated = false;
+            return result;
         }
 
         // callM Variable(ValueType = Type) Type MemberName Args
-        bool CallMemberCommand(Command cmd, ref int line)
+        ExecuteResult CallMemberCommand(ExecuteContext context)
         {
-            int orgline = line;
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
 
-            if ((cmd.Args[1] as ObjectType).Exists)
+            int orgline = context.Line;
+
+            if ((context.Command.Args[1] as ObjectType).Exists)
             {
-                Type t = (cmd.Args[1] as ObjectType).Value as Type;
-                var method = t.GetMethod(cmd.Args[2].Value as string, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance, cmd.Args.Count > 3? cmd.Args.ToArray()[3..].Select(x => DeBox(x).GetType()).ToArray() : Array.Empty<Type>());
+                Type t = (context.Command.Args[1] as ObjectType).Value as Type;
+                var method = t.GetMethod(context.Command.Args[2].Value as string, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance, context.Command.Args.Count > 3? context.Command.Args.ToArray()[3..].Select(x => DeBox(x).GetType()).ToArray() : Array.Empty<Type>());
 
                 List<object> param = new();
 
                 int i = 0;
                 foreach(var pi in method.GetParameters())
                 {
-                    param.Add(Convert.ChangeType(cmd.Args[3 + i].Value, pi.ParameterType));
+                    param.Add(Convert.ChangeType(context.Command.Args[3 + i].Value, pi.ParameterType));
                 }
 
                 if (method.ReturnType == typeof(void))
                 {
-                    method.Invoke(cmd.Args[0].Value, param.ToArray());
+                    method.Invoke(context.Command.Args[0].Value, param.ToArray());
                 }
                 else
                 {
-                    Script.CurrentScript.SetVar(M_CommandResult, method.Invoke(cmd.Args[0].Value, param.ToArray()));
+                    Script.CurrentScript.SetVar(M_CommandResult, method.Invoke(context.Command.Args[0].Value, param.ToArray()));
                 }
 
-                return true;
+                return result;
             }
 
-            if (VariableIsDelcarClass(cmd))
+            if (VariableIsDelcarClass(context.Command))
             {
-                ErrorData ed = new(line, cmd.ToCommandString(), new ArgumentException("SELF object is not delcar. to this class."), "SELF object is not delcar. to this class.");
+                ErrorData ed = new(context.Line, context.Command.ToCommandString(), new ArgumentException("SELF object is not delcar. to this class."), "SELF object is not delcar. to this class.");
                 ExceptionOperator.SetLastErrorEx(ed);
-                return false;
+                result.Complated = false;
+                return result;
             }
 
-            var instance = (cmd.Args[0].Value as ClassInstance);
-            ScriptObject[] argArray = cmd.Args.ToArray();
-            bool complate = instance.Invoke($".{(cmd.Args[1] as ObjectType).Value as string}@{(cmd.Args.Count > 3 ? GeneratorFunctionSignature(cmd.Args.ToArray()[3..]) : "")}.{cmd.Args[2]}", ref line, cmd.Args.Count > 3 ? argArray[3..] : null);
+            var instance = (context.Command.Args[0].Value as ClassInstance);
+            ScriptObject[] argArray = context.Command.Args.ToArray();
+            int line = context.Line;
+
+            bool complate = instance.Invoke($".{(context.Command.Args[1] as ObjectType).Value as string}@{(context.Command.Args.Count > 3 ? GeneratorFunctionSignature(context.Command.Args.ToArray()[3..]) : "")}.{context.Command.Args[2]}", ref line, context.Command.Args.Count > 3 ? argArray[3..] : null);
             if(complate)
             {
+                result.Line = line;
                 _callStack.Push(orgline);
             }
-            return complate;
+            else
+            {
+                result.Complated = false;
+            }
+            return result;
         }
 
         // getProp Variable Type MemberName
-        bool GetPropCommand(Command cmd, ref int line)
+        ExecuteResult GetPropCommand(ExecuteContext context)
         {
-            if ((cmd.Args[1] as ObjectType).Exists)
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            if ((context.Command.Args[1] as ObjectType).Exists)
             {
-                Type t = (cmd.Args[1] as ObjectType).Value as Type;
-                Script.CurrentScript.SetVar(M_CommandResult, t.GetProperty(cmd.Args[2].Value as string).GetValue(cmd.Args[0].Value));
-                return true;
+                Type t = (context.Command.Args[1] as ObjectType).Value as Type;
+                Script.CurrentScript.SetVar(M_CommandResult, t.GetProperty(context.Command.Args[2].Value as string).GetValue(context.Command.Args[0].Value));
+                return result;
             }
-            if (VariableIsDelcarClass(cmd))
+            if (VariableIsDelcarClass(context.Command))
             {
-                ErrorData ed = new(line, cmd.ToCommandString(), new ArgumentException("SELF object is not delcar. to this class."), "SELF object is not delcar. to this class.");
+                ErrorData ed = new(context.Line, context.Command.ToCommandString(), new ArgumentException("SELF object is not delcar. to this class."), "SELF object is not delcar. to this class.");
                 ExceptionOperator.SetLastErrorEx(ed);
-                return false;
+                result.Complated = false;
+                return result;
             }
 
-            var instance = (cmd.Args[0].Value as ClassInstance);
+            var instance = (context.Command.Args[0].Value as ClassInstance);
             try
             {
-                Script.CurrentScript.SetVar(M_CommandResult, instance.GetProperty(cmd.Args[2].Value as string));
+                Script.CurrentScript.SetVar(M_CommandResult, instance.GetProperty(context.Command.Args[2].Value as string));
             }
             catch(KeyNotFoundException e)
             {
-                ErrorData ed = new(line, cmd.ToCommandString(), e, "Member in " + instance.ClassName + "  no found.");
+                ErrorData ed = new(context.Line, context.Command.ToCommandString(), e, "Member in " + instance.ClassName + "  no found.");
                 ExceptionOperator.SetLastErrorEx(ed);
-                return false;
+                result.Complated = false;
+                return result;
             }
-            return true;
+            return result;
         }
 
         static bool VariableIsDelcarClass(Command cmd)
         {
-            return ((cmd.Args[1] as ObjectType).Value as string) != (cmd.Args[0].Value as ClassInstance).ClassName;
+            return ((cmd.Args[1] as ObjectType).Value as string) != (DeBox(cmd.Args[0]) as ClassInstance).ClassName;
         }
 
-        object DeBox(ScriptObject scriptObject)
+        static object DeBox(ScriptObject scriptObject)
         {
             if(scriptObject is not Variable)
             {
@@ -1296,71 +1544,139 @@ internal class Entry
             }
             else
             {
+                if (scriptObject.Value is not ScriptObject)
+                    return scriptObject.Value;
                 return DeBox(scriptObject.Value as ScriptObject);
             }
         }
 
-        bool SetPropCommand(Command cmd, ref int line)
+        ExecuteResult SetPropCommand(ExecuteContext context)
         {
-            if ((cmd.Args[1] as ObjectType).Exists)
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
+            if ((context.Command.Args[1] as ObjectType).Exists)
             {
-                Type t = (cmd.Args[1] as ObjectType).Value as Type;
-                t.GetProperty(cmd.Args[2].Value as string).SetValue(cmd.Args[0].Value, DeBox(cmd.Args[3]));
-                return true;
+                Type t = (context.Command.Args[1] as ObjectType).Value as Type;
+                t.GetProperty(context.Command.Args[2].Value as string).SetValue(context.Command.Args[0].Value, DeBox(context.Command.Args[3]));
+                return result;
             }
 
-            if (VariableIsDelcarClass(cmd))
+            if (VariableIsDelcarClass(context.Command))
             {
-                ErrorData ed = new(line, cmd.ToCommandString(), new ArgumentException("SELF object is not delcar. to this class."), "SELF object is not delcar. to this class.");
+                ErrorData ed = new(context.Line, context.Command.ToCommandString(), new ArgumentException("SELF object is not delcar. to this class."), "SELF object is not delcar. to this class.");
                 ExceptionOperator.SetLastErrorEx(ed);
-                return false;
+                result.Complated = false;
+                return result;
             }
 
-            var instance = (cmd.Args[0].Value as ClassInstance);
-            return instance.SetProperty(cmd.Args[2].Value as string, DeBox(cmd.Args[3]));
+            var instance = (context.Command.Args[0].Value as ClassInstance);
+            result.Complated = instance.SetProperty(context.Command.Args[2].Value as string, DeBox(context.Command.Args[3]));
+            return result;
         }
 
-        bool DefClassEndCommand(Command cmd, ref int line)
+        ExecuteResult DefClassEndCommand(ExecuteContext context)
         {
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
+
             if (!_inClassBlock || _inFuncBlock)
             {
-                ErrorData ed = new(line, cmd.ToCommandString(), new InvaildScriptSegmentException("Ctor. without class."), "Ctor. without class.");
+                ErrorData ed = new(context.Line, context.Command.ToCommandString(), new InvaildScriptSegmentException("Ctor. without class."), "Ctor. without class.");
                 ExceptionOperator.SetLastErrorEx(ed);
-                return false;
+                result.Complated = false;
+                return result;
             }
 
-            _currentClass.ClassEnd(line);
+            _currentClass.ClassEnd(context.Line);
             _classTemplateTable.Add(_currentClass.Name, _currentClass);
+            
+
+            var ctorPairList = 
+                _currentClass
+                .GetFunctions()
+                .ToList();
+
+            ctorPairList.RemoveAll(x => !x.Key.Contains(".ctor"));
+
+            var ctorList = ctorPairList.Select(x => x.Value);
+
+            DefaultCommandParser.RegisterCustomTypeConverter(_currentClass.Name, (args) =>
+            {
+                if(!ctorList.Any(x => x.Name == $".{_currentClass.Name}@{GeneratorFunctionSignature(context.Command.Args.ToArray())}..ctor"))
+                {
+                    return null;
+                }
+
+                var ctor = ctorList.First(x => x.Name == $".{_currentClass.Name}@{GeneratorFunctionSignature(context.Command.Args.ToArray())}..ctor");
+
+                InvokeFrame frame = InvokeFrame.CreateFrameFromScript(Script.CurrentScript);
+                Script orgEnv = Script.CurrentScript;
+                Script subEnv = new Script();
+                InvokeFrame.SetScriptStatusFromFrame(subEnv, frame);
+                subEnv.Commands = orgEnv.Commands.GetRange(_currentClass.ClassArea.Start.Value - 1, _currentClass.ClassArea.End.Value - 1 - _currentClass.ClassArea.Start.Value - 1);
+
+                var instance = _currentClass.CreateInstance("");
+                int index = 0;
+                foreach (var arg in args)
+                {
+                    subEnv.SetVar($"$ARG{(index > 0 ? index : "")}$", arg);
+                }
+                subEnv.SetVar(M_SelfObject, instance);
+
+                subEnv.CurrentLine = ctor.Entry;
+
+                var complate = subEnv.Execute();
+                return complate ?
+                new ScriptObject()
+                {
+                    Value = instance,
+                    ValueType = _currentClass.Name
+                }
+                :
+                null;
+            });
             _currentClass = null;
 
-            return !(_inClassBlock = false);
+            _inClassBlock = false;
+            return result;
         }
 
         // Variable Type Args
-        bool InitCommand(Command cmd, ref int line)
+        ExecuteResult InitCommand(ExecuteContext context)
         {
-            int orgline = line;
+            ExecuteResult result = ExecuteResult.CreateFromContext(context);
+            result.Complated = true;
 
-            if(!_classTemplateTable.ContainsKey((cmd.Args[1] as ObjectType).Value as string))
+            int orgline = context.Line;
+
+            if(!_classTemplateTable.ContainsKey((context.Command.Args[1] as ObjectType).Value as string))
             {
-                ErrorData ed = new ErrorData(line, cmd.ToCommandString(), new ArgumentException("Class " + ((cmd.Args[1] as ObjectType).Value as string) + " not in this script. (maybe not include?)"), "Class " + ((cmd.Args[1] as ObjectType).Value as string) + " not in this script. (maybe not include?)");
+                ErrorData ed = new ErrorData(context.Line, context.Command.ToCommandString(), new ArgumentException("Class " + ((context.Command.Args[1] as ObjectType).Value as string) + " not in this script. (maybe not include?)"), "Class " + ((context.Command.Args[1] as ObjectType).Value as string) + " not in this script. (maybe not include?)");
                 ExceptionOperator.SetLastErrorEx(ed);
-                return false;
+                result.Complated = false;
+                return result;
             }
 
-            var instance = _classTemplateTable[(cmd.Args[1] as ObjectType).Value as string].CreateInstance(cmd.Args[0].Value as string);
+            var instance = _classTemplateTable[(context.Command.Args[1] as ObjectType).Value as string].CreateInstance(context.Command.Args[0].Value as string);
             
-            ScriptObject[] argArray = cmd.Args.ToArray();
-            bool complate = instance.Invoke($".{(cmd.Args[1] as ObjectType).Value as string}@{(cmd.Args.Count > 2 ? GeneratorFunctionSignature(cmd.Args.ToArray()[2..]) : "")}.ctor", ref line, cmd.Args.Count > 2 ? argArray[2..] : null);
+            ScriptObject[] argArray = context.Command.Args.ToArray();
+            int line = context.Line;
+            bool complate = instance.Invoke($".{(context.Command.Args[1] as ObjectType).Value as string}@{(context.Command.Args.Count > 2 ? GeneratorFunctionSignature(context.Command.Args.ToArray()[2..]) : "")}.ctor", ref line, context.Command.Args.Count > 2 ? argArray[2..] : null);
             if (!complate)
-                return false;
+            {
+                result.Complated = false;
+                return result;
+            }
 
             _callStack.Push(orgline);
 
-            cmd.Args[0].Value = instance;
-            cmd.Args[0].ValueType = typeof(ClassInstance);
+            context.Command.Args[0].Value = instance;
+            context.Command.Args[0].ValueType = typeof(ClassInstance);
 
-            return complate;
+            result.Line = line;
+            result.Complated = complate;
+            return result;
         }
 
         void GlobalHandler(Command cmd, ref bool cancel, ref int line)
@@ -1406,22 +1722,24 @@ internal class Entry
             }
         ));
 
-        script.RegisterCommandHandler("defFunc", (
+        script.RegisterCommandHandler("func", (
             DefFuncCommand,
             new CommandArgumentOptions()
             {
                 VaildArgumentCount = true,
                 VaildArgumentParenthesis = true,
-                VaildArgumentType = false,
+                VaildArgumentType = true,
                 CountRange = new Range(1,1),
                 ArgumentParenthesisTypePairs = new List<GScript.Analyzer.Util.ParenthesisType>()
                 { GScript.Analyzer.Util.ParenthesisType.Middle },
                 ArgumentTypePairs = new()
-                { typeof(Flag) }
+                {
+                    "function"
+                }
             }
         ));
 
-        script.RegisterCommandHandler("defFuncEnd", (
+        script.RegisterCommandHandler("funcEnd", (
             DefFuncEndCommand,
             new CommandArgumentOptions()
             {
@@ -1432,7 +1750,7 @@ internal class Entry
             }
         ));
 
-        script.RegisterCommandHandler("callFunc", (
+        script.RegisterCommandHandler("call", (
             CallCommand,
             new CommandArgumentOptions()
             {
@@ -1444,7 +1762,7 @@ internal class Entry
                 { GScript.Analyzer.Util.ParenthesisType.Middle },
                 ArgumentTypePairs = new ()
                 { 
-                    typeof(Flag), 
+                    "function", 
                     TypeField.Object, 
                     TypeField.Object, 
                     TypeField.Object, 
@@ -1469,33 +1787,29 @@ internal class Entry
         ));
 
 
-        script.RegisterCommandHandler("remVar", (
-            RemovVarCommand,
+        script.RegisterCommandHandler("deVar", (
+            DeVarCommand,
             new CommandArgumentOptions()
             {
                 CountRange = new Range(1, 1),
                 VaildArgumentCount = true,
-                VaildArgumentType = true,
+                VaildArgumentType = false,
                 VaildArgumentParenthesis = true,
-                ArgumentTypePairs = new ()
-                { typeof(Flag) },
                 ArgumentParenthesisTypePairs = new List<GScript.Analyzer.Util.ParenthesisType>
-                { GScript.Analyzer.Util.ParenthesisType.Middle }
+                { GScript.Analyzer.Util.ParenthesisType.Small }
             }
         ));
 
-        script.RegisterCommandHandler("defDyVar", (
-            DefDyVarCommand,
+        script.RegisterCommandHandler("var", (
+            VarCommand,
             new CommandArgumentOptions()
             {
                 CountRange = new Range(1, 1),
                 VaildArgumentCount = true,
-                VaildArgumentType = true,
+                VaildArgumentType = false,
                 VaildArgumentParenthesis = true,
                 ArgumentParenthesisTypePairs = new List<GScript.Analyzer.Util.ParenthesisType>()
-                { GScript.Analyzer.Util.ParenthesisType.Middle },
-                ArgumentTypePairs = new ()
-                { typeof(Flag) }
+                { GScript.Analyzer.Util.ParenthesisType.Small }
             }
         ));
 
@@ -1810,7 +2124,7 @@ internal class Entry
         ));
 
 
-        script.RegisterCommandHandler("defClass", (
+        script.RegisterCommandHandler("class", (
             DefClassCommand,
             new CommandArgumentOptions()
             {
@@ -1865,7 +2179,7 @@ internal class Entry
         ));
 
 
-        script.RegisterCommandHandler("defCFunc", (
+        script.RegisterCommandHandler("MFunc", (
             DefCFuncCommand,
             new CommandArgumentOptions()
             {
@@ -1876,7 +2190,7 @@ internal class Entry
                 ArgumentParenthesisTypePairs = new()
                 {
                     ParenthesisType.Middle,
-                    ParenthesisType.Middle,
+                    ParenthesisType.None,
                     ParenthesisType.Big,
                     ParenthesisType.Big,
                     ParenthesisType.Big,
@@ -1889,7 +2203,7 @@ internal class Entry
                 ArgumentTypePairs = new()
                 {
                     "function",
-                    "Privation",
+                    "Literal",
                     typeof(ObjectType),
                     typeof(ObjectType),
                     typeof(ObjectType),
@@ -1903,7 +2217,7 @@ internal class Entry
         ));
 
 
-        script.RegisterCommandHandler("defCFuncEnd", (
+        script.RegisterCommandHandler("MFuncEnd", (
             DefCFuncEndCommand,
             new CommandArgumentOptions()
             {
@@ -2089,7 +2403,7 @@ internal class Entry
             }
         ));
 
-        script.RegisterCommandHandler("defClassEnd", (
+        script.RegisterCommandHandler("classEnd", (
             DefClassEndCommand,
             new CommandArgumentOptions()
             {
@@ -2124,5 +2438,10 @@ internal class Entry
         ));
 
         #endregion
+    }
+
+    private void InitialzeParsers(in Script script)
+    {
+        script.RegisterCommandParser("MFunc", new DefaultCommandParser("MFunc", true));
     }
 }

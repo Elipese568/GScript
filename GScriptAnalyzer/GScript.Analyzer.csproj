@@ -5,6 +5,17 @@
     <TargetFramework>net7.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="EUtility.ValueEx\**" />
+    <EmbeddedResource Remove="EUtility.ValueEx\**" />
+    <None Remove="EUtility.ValueEx\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="C:\Users\Administrator.DESKTOP-38EEGUF\source\repos\EUtility\EUtility.ValueEx\EUtility.ValueEx.csproj" />
+  </ItemGroup>
 
 </Project>

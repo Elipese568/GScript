@@ -1,0 +1,9 @@
+﻿{
+  "Modules": [
+    {
+      "Name": "std",
+      "Description": "Standard library of GScript.Standard.",
+      "Path": "%lib%\\std"
+    }
+  ]
+}

@@ -151,13 +151,13 @@ public class ClassInstance
 
     public bool Invoke(string name, ref int line, object[]? args)
     {
-        if(!_func.ContainsKey(name))
+        if(!_func.TryGetValue(name, out ClassFunction? value))
         {
             ErrorData ed = new(line, "", new ArgumentException("Member function not exist."), "Member function not exist.");
             ExceptionOperator.SetLastErrorEx(ed);
             return false;
         }
-        var func = _func[name];
+        var func = value;
 
         if(func.Privation == Privation.Private && !(_ct.ClassArea.Start.Value < line) && !(line < _ct.ClassArea.End.Value))
         {

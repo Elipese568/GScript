@@ -16,8 +16,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="std\string.gs">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <None Update="ModulesManifist.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Modules\std\114514.gs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Modules\std\string.gs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="test.gs">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

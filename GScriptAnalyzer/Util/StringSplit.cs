@@ -19,15 +19,24 @@ namespace GScript.Analyzer.Util
             m_rawstring = str;
             m_split = splitchar.ToString();
 
-            bool inPars = false;
+            Stack<ParenthesisType> pars = new();
 
             List<string> units = new List<string>();
             StringBuilder sb = new();
             foreach(char c in str)
             {
-                if (!StrParenthesis.GetStringParenthesisType(c.ToString()).HasFlag(ParenthesisType.Unknown))
+                if(StrParenthesis.GetCharHalfParenthesisType(c) is ParenthesisType t &&
+                   !t.HasFlag(ParenthesisType.Unknown))
                 {
-                    inPars = !inPars;
+                    if(pars.TryPeek(out var peek) && (peek ^ ParenthesisType.Left) == (t ^ ParenthesisType.Right))
+                    {
+                        pars.Pop();
+                    }
+                    else
+                    {
+                        pars.Push(t);
+                    }
+
                     sb.Append(c);
                 }
                 else
@@ -36,7 +45,7 @@ namespace GScript.Analyzer.Util
                         sb.Append(c);
                     else
                     {
-                        if(inPars)
+                        if(pars.Count != 0)
                             sb.Append(c);
                         else
                         {
