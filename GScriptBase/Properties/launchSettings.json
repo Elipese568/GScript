@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "GScriptBase": {
-      "commandName": "Project",
-      "commandLineArgs": "r D:\\Files\\GScriptAnalyzer\\GScriptBase\\test.gs"
-    }
-  }
-}
