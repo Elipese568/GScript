@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GScriptAnalyzer\GScript.Analyzer.csproj" />
+    <ProjectReference Include="..\GScript.Analyzer\GScript.Analyzer.csproj" />
   </ItemGroup>
 
   <ItemGroup>

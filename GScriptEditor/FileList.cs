@@ -1,4 +1,5 @@
-﻿using EUtility.ConsoleEx.Message;
+﻿using EUtility;
+using EUtility.ConsoleEx.Message;
 using EUtility.StringEx.StringExtension;
 using EUtility.ValueEx;
 using System;
@@ -128,7 +129,7 @@ internal class FileList
 
     public static Union<Void, FileInfo> FileDialog(string path)
     {
-        if (Setting.Exists("FileList_OpenPath"))
+        if (Setting.Exists("FileList_OpenPath") && Path.Exists(Setting.Read("FileList_OpenPath")))
             return _FileDialog(Setting.Read("FileList_OpenPath"));
 
         return _FileDialog(path);
@@ -168,7 +169,7 @@ internal class FileList
         void WriteItems()
         {
             int index = startitem;
-            Refresh(ref path, out items, out menuitems); 
+            Refresh(ref path, out items, out menuitems);
             foreach (var item in menuitems.ToArray()[startitem..Math.Min(menuitems.Count, enditem)])
             {
                 if (index == select)
@@ -176,7 +177,7 @@ internal class FileList
                     Console.BackgroundColor = ConsoleColor.White;
                     Console.ForegroundColor = ConsoleColor.Black;
                     var l = Console.WindowWidth - (item.Key + "   -->").GetStringInConsoleGridWidth();
-                    Console.WriteLine("   -->" + (l < 0 ? item.Key[..(Console.WindowWidth - 6)] : item.Key) + new string(' ', l < 0? 0 : l));
+                    Console.WriteLine("   -->" + (l < 0 ? item.Key[..(Console.WindowWidth - 6)] : item.Key) + new string(' ', l < 0 ? 0 : l));
                     Console.ResetColor();
 
                     var ct = Console.CursorTop;
@@ -312,7 +313,7 @@ internal class FileList
             catch (UnauthorizedAccessException)
             {
                 path = new DirectoryInfo(path).Parent.FullName;
-                Program.MessageBoxA(new IntPtr(0), "Unauthorized Access.", "Error", 0x10);
+                Native.MessageBoxA(new IntPtr(0), "Unauthorized Access.", "Error", 0x10);
                 items = Directory.GetFileSystemEntries(path).ToList();
                 items.Insert(0, "..");
                 menuitems = new();
@@ -321,7 +322,7 @@ internal class FileList
                     menuitems.Add(item, item);
                 }
             }
-            
+
         }
     }
 }

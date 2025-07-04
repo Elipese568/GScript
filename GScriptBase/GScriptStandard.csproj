@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GScriptAnalyzer\GScriptAnalyzer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="EUtility.ValueEx">
+      <HintPath>C:\Users\Administrator.DESKTOP-38EEGUF\source\repos\EUtility\EUtility.ValueEx\bin\Release\net6.0\EUtility.ValueEx.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="test.gs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

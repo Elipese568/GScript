@@ -20,9 +20,9 @@ internal partial class Program
 
     static int Main(string[] args)
     {
-#if DEBUG
-        Process.EnterDebugMode();
-#endif
+//#if DEBUG
+//        Process.EnterDebugMode();
+//#endif
         _rootCommand = new RootCommand();
         _beforeEntryFrameOutStream = new MemoryStream();
 

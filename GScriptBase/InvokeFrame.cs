@@ -12,7 +12,7 @@ namespace GScript.Standard;
 
 public struct InvokeFrame
 {
-    private Dictionary<string, Variable> m_variables;
+    private Dictionary<string, Analyzer.InternalType.Variable> m_variables;
     private int m_currentLine;
     private Dictionary<string, ParserBase> m_parsers;
     private Dictionary<string, (CommandHandler, CommandArgumentOptions)> m_commandHandles;

@@ -208,7 +208,7 @@ internal class Entry
 
             _inFuncBlock = true;
 
-            var name = (context.Command.Args[0].Value as string);
+            var name = (context.Command.Args[0].Value.ToString());
 
             _currentFunc.Item1 = name;
             _currentFunc.Item2 = new(context.Line, context.Line);
@@ -307,7 +307,7 @@ internal class Entry
             ExecuteResult result = ExecuteResult.CreateFromContext(context);
             result.Complated = true;
 
-            if (context.Command.Args[0] as Variable != null && (context.Command.Args[0] as Variable).Name == M_ValueStackTop)
+            if (context.Command.Args[0] as Analyzer.InternalType.Variable != null && (context.Command.Args[0] as Analyzer.InternalType.Variable).Name == M_ValueStackTop)
             {
                 ExceptionOperator.SetLastError(GSBE_INVAILDCRITIALVARIABLEOPERATOR); 
                 result.Complated = false;
@@ -319,7 +319,7 @@ internal class Entry
 
         ExecuteResult VarCommand(ExecuteContext context)
         {
-            Variable variable = context.Command.Args[0] as Variable;
+            Analyzer.InternalType.Variable variable = context.Command.Args[0] as Analyzer.InternalType.Variable;
             ExecuteResult result = ExecuteResult.CreateFromContext(context);
             result.Complated = true;
 
@@ -339,7 +339,7 @@ internal class Entry
 
         ExecuteResult DeVarCommand(ExecuteContext context)
         {
-            Variable variable = context.Command.Args[0] as Variable;
+            Analyzer.InternalType.Variable variable = context.Command.Args[0] as Analyzer.InternalType.Variable;
             ExecuteResult result = ExecuteResult.CreateFromContext(context);
             result.Complated = true;
 
@@ -444,9 +444,9 @@ internal class Entry
             Type aType = avt as Type ?? typeof(void);
             Type bType = bvt as Type ?? typeof(void);
 
-            if (a as Variable != null)
+            if (a as Analyzer.InternalType.Variable != null)
             {
-                var v = (a as Variable);
+                var v = (a as Analyzer.InternalType.Variable);
                 switch (v.Name)
                 {
                     case M_ValueStackPointer:
@@ -484,9 +484,9 @@ internal class Entry
             var a = context.Command.Args[0];
             var b = context.Command.Args[1];
 
-            if (a as Variable != null)
+            if (a as Analyzer.InternalType.Variable != null)
             {
-                var v = (a as Variable);
+                var v = (a as Analyzer.InternalType.Variable);
                 switch (v.Name)
                 {
                     case M_ValueStackPointer:
@@ -521,9 +521,9 @@ internal class Entry
             var a = context.Command.Args[0];
             var b = context.Command.Args[1];
 
-            if (a as Variable != null)
+            if (a as Analyzer.InternalType.Variable != null)
             {
-                var v = (a as Variable);
+                var v = (a as Analyzer.InternalType.Variable);
                 switch (v.Name)
                 {
                     case M_ValueStackPointer:
@@ -558,9 +558,9 @@ internal class Entry
             var a = context.Command.Args[0];
             var b = context.Command.Args[1];
 
-            if (a as Variable != null)
+            if (a as Analyzer.InternalType.Variable != null)
             {
-                var v = (a as Variable);
+                var v = (a as Analyzer.InternalType.Variable);
                 switch (v.Name)
                 {
                     case M_ValueStackPointer:
@@ -595,9 +595,9 @@ internal class Entry
             var a = context.Command.Args[0];
             var b = context.Command.Args[1];
 
-            if (a as Variable != null)
+            if (a as Analyzer.InternalType.Variable != null)
             {
-                var v = (a as Variable);
+                var v = (a as Analyzer.InternalType.Variable);
                 switch (v.Name)
                 {
                     case M_ValueStackPointer:
@@ -633,9 +633,9 @@ internal class Entry
             var a = context.Command.Args[0];
             var b = context.Command.Args[1];
 
-            if (a as Variable != null)
+            if (a as Analyzer.InternalType.Variable != null)
             {
-                var v = (a as Variable);
+                var v = (a as Analyzer.InternalType.Variable);
                 switch (v.Name)
                 {
                     case M_ValueStackPointer:
@@ -671,9 +671,9 @@ internal class Entry
             var a = context.Command.Args[0];
             var b = context.Command.Args[1];
 
-            if (a as Variable != null)
+            if (a as Analyzer.InternalType.Variable != null)
             {
-                var v = (a as Variable);
+                var v = (a as Analyzer.InternalType.Variable);
                 switch (v.Name)
                 {
                     case M_ValueStackPointer:
@@ -709,9 +709,9 @@ internal class Entry
             var a = context.Command.Args[0];
             var b = context.Command.Args[1];
 
-            if (a as Variable != null)
+            if (a as Analyzer.InternalType.Variable != null)
             {
-                var v = (a as Variable);
+                var v = (a as Analyzer.InternalType.Variable);
                 switch (v.Name)
                 {
                     case M_ValueStackPointer:
@@ -747,9 +747,9 @@ internal class Entry
             var a = context.Command.Args[0];
             var b = context.Command.Args[1];
 
-            if (a as Variable != null)
+            if (a as Analyzer.InternalType.Variable != null)
             {
-                var v = (a as Variable);
+                var v = (a as Analyzer.InternalType.Variable);
                 switch (v.Name)
                 {
                     case M_ValueStackPointer:
@@ -784,9 +784,9 @@ internal class Entry
             var a = context.Command.Args[0];
             var b = context.Command.Args[1];
 
-            if (a as Variable != null)
+            if (a as Analyzer.InternalType.Variable != null)
             {
-                var v = (a as Variable);
+                var v = (a as Analyzer.InternalType.Variable);
                 switch (v.Name)
                 {
                     case M_ValueStackPointer:
@@ -821,9 +821,9 @@ internal class Entry
             var a = context.Command.Args[0];
             var b = context.Command.Args[1];
 
-            if (a as Variable != null)
+            if (a as Analyzer.InternalType.Variable != null)
             {
-                var v = (a as Variable);
+                var v = (a as Analyzer.InternalType.Variable);
                 switch (v.Name)
                 {
                     case M_ValueStackPointer:
@@ -858,9 +858,9 @@ internal class Entry
             var a = context.Command.Args[0];
             var b = context.Command.Args[1];
 
-            if (a as Variable != null)
+            if (a as Analyzer.InternalType.Variable != null)
             {
-                var v = (a as Variable);
+                var v = (a as Analyzer.InternalType.Variable);
                 switch (v.Name)
                 {
                     case M_ValueStackPointer:
@@ -895,9 +895,9 @@ internal class Entry
             var a = context.Command.Args[0];
             var b = context.Command.Args[1];
 
-            if (a as Variable != null)
+            if (a as Analyzer.InternalType.Variable != null)
             {
-                var v = (a as Variable);
+                var v = (a as Analyzer.InternalType.Variable);
                 switch (v.Name)
                 {
                     case M_ValueStackPointer:
@@ -932,9 +932,9 @@ internal class Entry
             var a = context.Command.Args[0];
             var b = context.Command.Args[1];
 
-            if (a as Variable != null)
+            if (a as Analyzer.InternalType.Variable != null)
             {
-                var v = (a as Variable);
+                var v = (a as Analyzer.InternalType.Variable);
                 switch (v.Name)
                 {
                     case M_ValueStackPointer:
@@ -969,9 +969,9 @@ internal class Entry
             var a = context.Command.Args[0];
             var b = context.Command.Args[1];
 
-            if (a as Variable != null)
+            if (a as Analyzer.InternalType.Variable != null)
             {
-                var v = (a as Variable);
+                var v = (a as Analyzer.InternalType.Variable);
                 switch (v.Name)
                 {
                     case M_ValueStackPointer:
@@ -1006,9 +1006,9 @@ internal class Entry
             var a = context.Command.Args[0];
             var b = context.Command.Args[1];
 
-            if (a as Variable != null)
+            if (a as Analyzer.InternalType.Variable != null)
             {
-                var v = (a as Variable);
+                var v = (a as Analyzer.InternalType.Variable);
                 switch (v.Name)
                 {
                     case M_ValueStackPointer:
@@ -1538,7 +1538,7 @@ internal class Entry
 
         static object DeBox(ScriptObject scriptObject)
         {
-            if(scriptObject is not Variable)
+            if(scriptObject is not Analyzer.InternalType.Variable)
             {
                 return scriptObject.Value;
             }

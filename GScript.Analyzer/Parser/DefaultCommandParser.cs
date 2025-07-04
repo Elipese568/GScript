@@ -248,13 +248,13 @@ public class DefaultCommandParser : ParserBase
                 break;
             case ParenthesisType.Small:
                 type = ParserTokenType.Argument;
-                if (Script.CurrentScript.Vars.TryGetValue(parContent, out Variable? knownVariable))
+                if (Script.CurrentScript.Vars.TryGetValue(parContent, out InternalType.Variable? knownVariable))
                 {
                     go = knownVariable;
                 }
                 else
                 {
-                    go = new Variable() { Name = parContent };
+                    go = new InternalType.Variable() { Name = parContent };
                     //GSScript.CurrentScript.Vars.Add(su[1..(su.Length - 2)], new GSVar() { Name = su[1..(su.Length - 2)] });
                 }
                 break;

@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="C:\Users\Administrator.DESKTOP-38EEGUF\source\repos\EUtility\EUtility.ValueEx\EUtility.ValueEx.csproj" />
+    <PackageReference Include="Elipese.EUtility.ValueEx" Version="1.0.1" />
   </ItemGroup>
 
 </Project>

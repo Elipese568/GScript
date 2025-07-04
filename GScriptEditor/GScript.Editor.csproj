@@ -9,14 +9,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Elipese.EUtility.ConsoleEx.BottomMessage" Version="1.0.1" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
     <PackageReference Include="TrueColorConsole" Version="1.0.2" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GScript.Editer.Clipboard\GScript.Editer.Clipboard.vcxproj" />
-    <ProjectReference Include="..\GScriptAnalyzer\GScript.Analyzer.csproj" />
-    <ProjectReference Include="C:\Users\Administrator.DESKTOP-38EEGUF\source\repos\EUtility\EUtility.Console.BottomMessage\EUtility.ConsoleEx.Message.csproj" />
+    <ProjectReference Include="..\GScript.Analyzer\GScript.Analyzer.csproj" />
+    <ProjectReference Include="..\GScript.Editor.Clipboard\GScript.Editer.Clipboard.vcxproj" />
   </ItemGroup>
 
   <ItemGroup>

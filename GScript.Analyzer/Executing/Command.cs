@@ -55,7 +55,7 @@ public class Command
         var varSwitch =
             VariableSwitch<Union<string, Type>>
                 .Create()
-                .CreateCase(typeof(Variable), x =>
+                .CreateCase(typeof(InternalType.Variable), x =>
                 {
                     return ParenthesisType.Small;
                 })
@@ -84,7 +84,7 @@ public class Command
             ParserTokenType.Argument => (ParenthesisType)varSwitch.Switch(v.TokenData.ValueType)
         });
 
-        if (Args.Exists(x => x is Variable))
+        if (Args.Exists(x => x is InternalType.Variable))
             Script.CurrentScript.RegisterGlobalCommandHandler(__GlobalHandler);
     }
 
@@ -97,12 +97,12 @@ public class Command
         foreach (var arg in ArgT)
         {
             i++;
-            if (arg.GetType() != typeof(Variable))
+            if (arg.GetType() != typeof(InternalType.Variable))
                 continue;
 
             try
             {
-                Args[i - 1] = Script.CurrentScript.Vars[(arg as Variable).Name];
+                Args[i - 1] = Script.CurrentScript.Vars[(arg as InternalType.Variable).Name];
             }
             catch { }
             var k = Args[i - 1];
@@ -136,7 +136,7 @@ public class Command
         sb.Append(' ');
         foreach (var arg in m_typeargpairs)
         {
-            sb.Append(StrParenthesis.GetParenthesisTypeString(arg.Value, arg.Value == ParenthesisType.Small ? ((Variable)arg.Key).Name : arg.Key.Value.ToString()));
+            sb.Append(StrParenthesis.GetParenthesisTypeString(arg.Value, arg.Value == ParenthesisType.Small ? ((InternalType.Variable)arg.Key).Name : arg.Key.Value.ToString()));
             sb.Append(' ');
         }
         return sb.ToString().TrimEnd(' ');

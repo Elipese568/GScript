@@ -11,17 +11,19 @@ public class Script
     StreamReader m_reader;
 
     string m_filename;
-    Head m_scripthead;
-    Dictionary<string, Variable> m_vars;
+    Head? m_scripthead;
+    Dictionary<string, InternalType.Variable> m_vars;
     Dictionary<string, (CommandHandler, CommandArgumentOptions)> m_cmdhandlers;
     List<CommandGlobalHandler> m_globalHandler = new();
     Dictionary<string, ParserBase> m_commandParsers = new();
 
     public StreamReader? Reader => m_reader;
     public string FileName => m_filename;
-    public Head ScriptHead { get => m_scripthead; set => m_scripthead = value; }
+
+    [Obsolete("Unusable feature.")]
+    public Head? ScriptHead { get => m_scripthead; set => m_scripthead = value; }
     public List<Command> Commands { get; set; }
-    public Dictionary<string, Variable> Vars { get => m_vars; set => m_vars = value; }
+    public Dictionary<string, InternalType.Variable> Vars { get => m_vars; set => m_vars = value; }
     public static Script? CurrentScript { get; set; }
     public List<string> Docs { get; set; }
     public Dictionary<string, (CommandHandler, CommandArgumentOptions)> CommandHandlers { get => m_cmdhandlers; set => m_cmdhandlers = value; }
@@ -34,7 +36,7 @@ public class Script
         m_reader = null;
         m_filename = string.Empty;
         m_scripthead = null;
-        m_vars = new Dictionary<string, Variable>();
+        m_vars = new Dictionary<string, InternalType.Variable>();
         m_cmdhandlers = new Dictionary<string, (CommandHandler, CommandArgumentOptions)>();
         Commands = new List<Command>();
         CurrentScript = this;
@@ -57,7 +59,7 @@ public class Script
             else if (line.TrimStart(' ').StartsWith('#'))
                 Docs.Add(line);
             else if (line.TrimStart(' ').StartsWith("var:"))
-                Vars.Add(line.Split(':')[1], new Variable() { Name = line.Split(':')[1] });
+                Vars.Add(line.Split(':')[1], new InternalType.Variable() { Name = line.Split(':')[1] });
             else
             {
                 ParserBase argparser = ParserBase.Empty;
@@ -94,7 +96,7 @@ public class Script
             else if (line.TrimStart(' ').StartsWith('#'))
                 Docs.Add(line);
             else if (line.TrimStart(' ').StartsWith("var:"))
-                Vars.Add(line.Split(':')[1], new Variable() { Name = line.Split(':')[1] });
+                Vars.Add(line.Split(':')[1], new InternalType.Variable() { Name = line.Split(':')[1] });
             else
             {
                 ParserBase argparser = ParserBase.Empty;
@@ -204,7 +206,7 @@ public class Script
 
     public void AddVar(string name, object value = null)
     {
-        Vars.Add(name, new Variable() { Name = name, Value = value });
+        Vars.Add(name, new InternalType.Variable() { Name = name, Value = value });
     }
 
     public void RemoveVar(string name)

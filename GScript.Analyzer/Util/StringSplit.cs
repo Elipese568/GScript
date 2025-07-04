@@ -75,7 +75,14 @@ namespace GScript.Analyzer.Util
         {
             get
             {
-                return m_splitunits[index];
+                try
+                {
+                    return m_splitunits[index];
+                }
+                catch
+                {
+                    return "";
+                }
             }
         }
 
