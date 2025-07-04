@@ -363,3 +363,6 @@ MigrationBackup/
 FodyWeavers.xsd
 /GScriptBase/test.gs
 /GScriptBase/Properties/launchSettings.json
+/GScript.WinForm/GScript.WinForm.csproj
+/GScript.WinForm/Program.cs
+/GScript.FeatureTest/Program.cs
